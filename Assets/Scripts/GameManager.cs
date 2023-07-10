@@ -114,25 +114,7 @@ public class GameManager : MonoBehaviour
 
         return closestSlot;
     }
-    void DivideImage(int numParts)
-    {
-        int width = globalTexture.width;
-        int height = globalTexture.height;
 
-        int pieceWidth = width / numParts;
-        int pieceHeight = height / numParts;
-        Texture2D[] piecePart = new Texture2D[numParts * numParts];
-
-        int index = 0;
-
-        for (int y = 0; y < numParts; y++)
-        {
-            for (int x = 0; x < numParts; x++)
-            {
-                Texture2D piece = new Texture2D(pieceWidth, pieceHeight);
-            }
-        }
-    }
     //Working on this
     private Sprite CutSprite(int x, int y, int spriteWidth, int spriteHeight)
     {
