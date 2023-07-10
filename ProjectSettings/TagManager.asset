@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Construction
+  - Obstacle
+  - GridLabel
+  - Rubble
+  - Projectile
+  - BuildingCannon
+  - Bullet
+  - Star
+  - Gain
+  - TransData
+  - BuildingStar
+  - BuildingGun
+  - Smoke
+  - Fire
+  - DamageBar
+  - OutofMap
+  - Shadow
+  - Snow
+  - Removable
+  - RemovableTimer
+  - Summon
+  - Target
+  - Grass
+  - Structure
+  - Unit
+  - Dobbit
+  - StoneWall
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - UILayer
+  - Grass
+  - Hide
+  - RayLayer
+  - LightLayer
+  - SFX
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
