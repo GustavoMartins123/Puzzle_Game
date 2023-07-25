@@ -14,4 +14,6 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/NGUI/Examples/Scenes/Example 1 - Anchors.unity
     guid: a1a629371c484164e85541902c003f93
-  m_configObjects: {}
+  m_configObjects:
+    com.unity.input.settings: {fileID: 11400000, guid: 026627e2a4f842a4080dd14cd6988c38,
+      type: 2}

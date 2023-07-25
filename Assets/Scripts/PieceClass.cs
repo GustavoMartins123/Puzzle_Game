@@ -1,22 +1,13 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler
 {
-    [SerializeField]string pieceName = "";
     [SerializeField]Image sprite = null;
     [SerializeField]int myId = 0;
     public bool pieceInSlot = false;
     public UiDragPiece dragPiece;
-
-    public string GetName()
-    {
-        return pieceName;
-    }
     public Sprite GetSprite()
     {
         return sprite.sprite;
@@ -43,7 +34,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler
         {
             dragPiece.piecePreviousId = myId;
             piece.transform.SetParent(dragPiece.mouseImg.transform);
-            piece.transform.localPosition = Vector3.zero;
+            piece.transform.localPosition = Vector2.Lerp(piece.transform.localPosition, Vector2.zero, 0.1f);
             GameManager.Instance.pieceManager.OnPieceChanged?.Invoke(this, true);
         }
         else
@@ -66,14 +57,12 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler
                 piece.transform.localRotation = Quaternion.identity;
                 piece.transform.localPosition = Vector2.zero;
                 dragPiece.mouseImg.transform.localPosition = Vector3.zero;
-                slot = null;
             }
             else
             {
                 piece.transform.SetParent(GameManager.Instance.fatherOfPieces.transform);
                 GameManager.Instance.pieceManager.OnPieceChanged?.Invoke(this, false);
                 dragPiece.mouseImg.transform.localPosition = Vector3.zero;
-                slot = null;
             }
         }
     }
