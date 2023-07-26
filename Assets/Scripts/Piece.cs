@@ -1,9 +1,6 @@
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
-using UnityEngine.U2D;
-using static UnityEngine.GraphicsBuffer;
 
 [CreateAssetMenu(fileName ="Item", menuName ="New Item")]
 public class Piece : ScriptableObject
@@ -115,8 +112,8 @@ public class Piece : ScriptableObject
             {
                 Debug.Log("No Images Found in the Specified Folder");
             }
-            //EditorUtility.SetDirty(piece);
-            //AssetDatabase.SaveAssets();
+            EditorUtility.SetDirty(piece);
+            AssetDatabase.SaveAssets();
         }
     }
 #endif

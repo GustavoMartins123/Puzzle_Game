@@ -1,21 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
-    public List<PieceClass> pieces = new List<PieceClass>();
-    public List<Slot> slots = new List<Slot>();
-    public PieceManager pieceManager;
+    [SerializeField] List<PieceClass> pieces = new List<PieceClass>();
+    [SerializeField] List<Slot> slots = new List<Slot>();
     [SerializeField] GameObject pieceObjectReference, slot;
     public GameObject fatherOfPieces;
     [SerializeField] Image[] panelObjects;
     [SerializeField] Image panelGrid;
     [Space(2)]
     [Header("Input")]
-    [SerializeField] InputManager inputManager;
+    public InputManager inputManager;
     
     [SerializeField] UiDragPiece dragPiece;
 
@@ -25,6 +23,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] Piece piecePart;
     [SerializeField] Sprite panelGridImage;
 
+
+    [Header("PanelWin")]
+    [SerializeField] GameObject panelWin;
     private void Awake()
     {
         if (Instance == null)
@@ -35,37 +36,33 @@ public class GameManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+        
         piecePart = scriptablePiece[Random.Range(0, scriptablePiece.Length)];
-        GameObject panel = Instantiate(panelObjects[(int)piecePart.type].gameObject, fatherOfPieces.transform);
+        GameObject panel = Instantiate(panelObjects[(int)piecePart.type].gameObject, fatherOfPieces.transform.parent);
         panel.transform.SetAsFirstSibling();
         panelGrid = panel.GetComponent<Image>();
-        pieceManager.InitializePiece(piecePart.piecePart.Length - 1, dragPiece);
         panelGridImage = piecePart.panelGridImage;
         panelGrid.sprite = panelGridImage;
 
         for (int x = 0; x < piecePart.piecePart.Length - 1; x++)
         {
-            GameObject piece = Instantiate(pieceObjectReference);
+            GameObject piece = Instantiate(pieceObjectReference,fatherOfPieces.transform);
             PieceClass pieceClass = piece.GetComponent<PieceClass>();
             pieces.Add(pieceClass);
-            piece.transform.SetParent(fatherOfPieces.transform);
             pieceClass.SetId(x);
             pieceClass.SetSprite(piecePart.piecePart[x]);
             PositionAndRotation(pieceClass);
-
             GameObject gameSlot = Instantiate(this.slot, panelGrid.transform);
             Slot slot = gameSlot.GetComponent<Slot>();
             slot.id = x;
             slots.Add(slot);
         }
+        dragPiece.mouseImg.transform.SetAsLastSibling();
     }
-    
     private void Start()
     {
-        
-        pieceManager.OnPieceChanged += PieceManager_OnPieceChanged;
+        inputManager.OnPieceChanged += PieceManager_OnPieceChanged;
     }
-
     private void PieceManager_OnPieceChanged(object sender, bool e)
     {
         dragPiece.mouseImg.gameObject.SetActive(e);
@@ -81,13 +78,13 @@ public class GameManager : MonoBehaviour
 
         if (allTrue)
         {
-            Debug.Log("Win");
+            panelWin.SetActive(true);
         }
     }
 
     void PositionAndRotation(PieceClass pieceClass)
     {
-        Vector3 pos = new Vector2(Random.Range(-Screen.width * 0.4f, Screen.width * 0.4f), Random.Range(-Screen.height * 0.4f, Screen.height * 0.4f));
+        Vector3 pos = new Vector2(Random.Range(-Screen.currentResolution.width * 0.4f, Screen.currentResolution.width * 0.4f), Random.Range(-Screen.currentResolution.height * 0.4f, Screen.currentResolution.height * 0.4f));
         Quaternion rotation = Quaternion.Euler(0, 0, Random.Range(-360f, 360f));
         pieceClass.transform.localPosition = pos;
         pieceClass.transform.localRotation = rotation;
@@ -111,5 +108,6 @@ public class GameManager : MonoBehaviour
 
         return closestSlot;
     }
+    
 
 }

@@ -6,14 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/CityBuildingKit/Scenes/Game.unity
-    guid: 082778915a0ede04db3ad14e20cdd35f
-  - enabled: 1
-    path: Assets/CityBuildingKit/Scenes/Map01.unity
-    guid: 82b85a445c1b7b342b926d355026438c
-  - enabled: 0
-    path: Assets/NGUI/Examples/Scenes/Example 1 - Anchors.unity
-    guid: a1a629371c484164e85541902c003f93
+    path: Assets/Scenes/SampleScene.unity
+    guid: 73556138435498c4580402d203fb27df
   m_configObjects:
     com.unity.input.settings: {fileID: 11400000, guid: 026627e2a4f842a4080dd14cd6988c38,
       type: 2}

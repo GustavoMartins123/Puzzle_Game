@@ -34,24 +34,6 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
-                    ""name"": ""Hit"",
-                    ""type"": ""Value"",
-                    ""id"": ""f7558dd3-9d41-4106-8567-cde9a9c0991e"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": true
-                },
-                {
-                    ""name"": ""Aim"",
-                    ""type"": ""Value"",
-                    ""id"": ""0b11972e-1575-4b20-99c5-9946bb28be55"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
                     ""initialStateCheck"": true
                 },
                 {
@@ -68,33 +50,11 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
                 {
                     ""name"": """",
                     ""id"": ""8bad2fff-23ff-45ba-b9b2-10fa184f6fbf"",
-                    ""path"": ""<Keyboard>/q"",
+                    ""path"": ""<Keyboard>/escape"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",
                     ""action"": ""Pause"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""35d8ed40-89e4-42d7-a19c-32c92a03262b"",
-                    ""path"": ""<Mouse>/leftButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""Hit"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""8c227bb7-36cb-4625-bac5-67d8c5ad4bbe"",
-                    ""path"": ""<Mouse>/rightButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": """",
-                    ""action"": ""Aim"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -117,8 +77,6 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
         // Move
         m_Move = asset.FindActionMap("Move", throwIfNotFound: true);
         m_Move_Pause = m_Move.FindAction("Pause", throwIfNotFound: true);
-        m_Move_Hit = m_Move.FindAction("Hit", throwIfNotFound: true);
-        m_Move_Aim = m_Move.FindAction("Aim", throwIfNotFound: true);
         m_Move_MousePos = m_Move.FindAction("MousePos", throwIfNotFound: true);
     }
 
@@ -180,16 +138,12 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
     private readonly InputActionMap m_Move;
     private IMoveActions m_MoveActionsCallbackInterface;
     private readonly InputAction m_Move_Pause;
-    private readonly InputAction m_Move_Hit;
-    private readonly InputAction m_Move_Aim;
     private readonly InputAction m_Move_MousePos;
     public struct MoveActions
     {
         private @PlayerInputActions2 m_Wrapper;
         public MoveActions(@PlayerInputActions2 wrapper) { m_Wrapper = wrapper; }
         public InputAction @Pause => m_Wrapper.m_Move_Pause;
-        public InputAction @Hit => m_Wrapper.m_Move_Hit;
-        public InputAction @Aim => m_Wrapper.m_Move_Aim;
         public InputAction @MousePos => m_Wrapper.m_Move_MousePos;
         public InputActionMap Get() { return m_Wrapper.m_Move; }
         public void Enable() { Get().Enable(); }
@@ -203,12 +157,6 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
                 @Pause.started -= m_Wrapper.m_MoveActionsCallbackInterface.OnPause;
                 @Pause.performed -= m_Wrapper.m_MoveActionsCallbackInterface.OnPause;
                 @Pause.canceled -= m_Wrapper.m_MoveActionsCallbackInterface.OnPause;
-                @Hit.started -= m_Wrapper.m_MoveActionsCallbackInterface.OnHit;
-                @Hit.performed -= m_Wrapper.m_MoveActionsCallbackInterface.OnHit;
-                @Hit.canceled -= m_Wrapper.m_MoveActionsCallbackInterface.OnHit;
-                @Aim.started -= m_Wrapper.m_MoveActionsCallbackInterface.OnAim;
-                @Aim.performed -= m_Wrapper.m_MoveActionsCallbackInterface.OnAim;
-                @Aim.canceled -= m_Wrapper.m_MoveActionsCallbackInterface.OnAim;
                 @MousePos.started -= m_Wrapper.m_MoveActionsCallbackInterface.OnMousePos;
                 @MousePos.performed -= m_Wrapper.m_MoveActionsCallbackInterface.OnMousePos;
                 @MousePos.canceled -= m_Wrapper.m_MoveActionsCallbackInterface.OnMousePos;
@@ -219,12 +167,6 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
                 @Pause.started += instance.OnPause;
                 @Pause.performed += instance.OnPause;
                 @Pause.canceled += instance.OnPause;
-                @Hit.started += instance.OnHit;
-                @Hit.performed += instance.OnHit;
-                @Hit.canceled += instance.OnHit;
-                @Aim.started += instance.OnAim;
-                @Aim.performed += instance.OnAim;
-                @Aim.canceled += instance.OnAim;
                 @MousePos.started += instance.OnMousePos;
                 @MousePos.performed += instance.OnMousePos;
                 @MousePos.canceled += instance.OnMousePos;
@@ -235,8 +177,6 @@ public partial class @PlayerInputActions2 : IInputActionCollection2, IDisposable
     public interface IMoveActions
     {
         void OnPause(InputAction.CallbackContext context);
-        void OnHit(InputAction.CallbackContext context);
-        void OnAim(InputAction.CallbackContext context);
         void OnMousePos(InputAction.CallbackContext context);
     }
 }

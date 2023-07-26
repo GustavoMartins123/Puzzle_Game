@@ -5,4 +5,5 @@ public class UiDragPiece : MonoBehaviour
 {
     public Image mouseImg;
     public int piecePreviousId;
+    public PieceClass pieceClass;
 }
