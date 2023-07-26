@@ -6,12 +6,12 @@ public class InputManager: MonoBehaviour
 {
     public EventHandler<bool> OnPieceChanged;
     public EventHandler OnPauseCalled;
-    PlayerInputActions2 inputActions;
-    PlayerInputActions2.MoveActions moveActions;
-    [SerializeField] UiDragPiece dragPiece;
+    private PlayerInputActions2 inputActions;
+    private PlayerInputActions2.MoveActions moveActions;
+    [SerializeField] private UiDragPiece dragPiece;
 
-    [SerializeField] GameObject panelWin;
-    bool pause = false;
+    [SerializeField] private GameObject panelWin;
+    private bool pause = false;
     private void Awake()
     {
         inputActions = new PlayerInputActions2();
@@ -29,7 +29,7 @@ public class InputManager: MonoBehaviour
         moveActions.Disable();
     }
 
-    void GetMousePosition()
+    private void GetMousePosition()
     {
         Vector2 mousePosition = moveActions.MousePos.ReadValue<Vector2>();
 
@@ -44,7 +44,7 @@ public class InputManager: MonoBehaviour
         dragPiece.mouseImg.rectTransform.position = smoothedPosition;
     }
 
-    void Pause()
+    private void Pause()
     {
         pause = !pause;
         panelWin.SetActive(pause);

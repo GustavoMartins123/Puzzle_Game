@@ -5,11 +5,11 @@ using UnityEngine.UI;
 
 public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragHandler
 {
-    [SerializeField]Image sprite = null;
-    [SerializeField]int myId = 0;
+    [SerializeField] private Image sprite = null;
+    [SerializeField] private int myId = 0;
     public bool pieceInSlot = false;
     public UiDragPiece dragPiece;
-    [SerializeField] InputManager inputManager;
+    [SerializeField] private InputManager inputManager;
     private void Start()
     {
         inputManager.OnPauseCalled += InputManager_OnPauseCalled;

@@ -98,14 +98,10 @@ public class Piece : ScriptableObject
                         }
                         piece.panelGridImage = sprites[sprites.Length - 1];
                     }
-                    else
-                    {
-                        Debug.Log("Not enough sprites in the selected image");
-                    }
                 }
                 else
                 {
-                    Debug.Log("Failed to Load Random Image");
+                    Debug.Log("Failed to load image");
                 }
             }
             else
