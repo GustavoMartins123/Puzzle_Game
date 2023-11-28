@@ -1,116 +1,119 @@
-using System.Linq;
-using UnityEditor;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
-[CreateAssetMenu(fileName ="Item", menuName ="New Item")]
-public class Piece : ScriptableObject
+public class Piece: MonoBehaviour
 {
-    public enum PieceType
+    public PieceClass pieceObjectReference;
+    [SerializeField] GameObject fatherOfPieces;
+    public Image BackGround;
+    public List<Image> sprites = new List<Image>();
+    [SerializeField] GridLayoutGroup gridLayoutGroup;
+    Texture2D sourceTexture;
+
+    [SerializeField]
+    int[] numImages =
     {
-        threeX3 = 0,
-        fourX3 = 1,
-        fiveX3 = 2,
+        4,9,16,25
+    };
+
+    [SerializeField]
+    int[] numColumsRows =
+    {
+        2,3,4,5
+    };
+
+    [SerializeField]
+    int[] numCellSize =
+    {
+        300,200,150,120
+    };
+
+    public void Awake()
+    {
+        InstantiateSprites(numImages[Random.Range(0, numImages.Length)]);
+        LoadAndSliceTexture();
     }
-    public PieceType type;
-    public Sprite panelGridImage;
-    public Sprite[] piecePart;
 
-
-#if UNITY_EDITOR
-    [CustomEditor(typeof(Piece))]
-    public class PieceEditor : Editor
+    private void InstantiateSprites(int num)
     {
-        private bool generateSpritesFlag = false;
-
-        private void OnEnable()
+        for (int i = 0; i < num; i++)
         {
-            EditorApplication.update += Update;
+            GameObject gameObject = Instantiate(pieceObjectReference.gameObject, fatherOfPieces.transform);
+            sprites.Add(gameObject.GetComponent<Image>());
         }
+    }
 
-        private void OnDisable()
+    public void LoadAndSliceTexture()
+    {
+        string folderPath = "Sprites/Fish";
+        Texture2D[] textures = Resources.LoadAll<Texture2D>(folderPath);
+
+        if (textures.Length > 0)
         {
-            EditorApplication.update -= Update;
-        }
+            int randomIndex = Random.Range(0, textures.Length);
+            Texture2D randomImage = textures[randomIndex];
+            BackGround.sprite = Sprite.Create(randomImage, new Rect(0, 0, randomImage.width, randomImage.height), Vector2.zero);
 
-        private void Update()
-        {
-            if (generateSpritesFlag)
+            if (randomImage != null)
             {
-                generateSpritesFlag = false;
-                GenerateSprites();
-            }
-        }
-        public override void OnInspectorGUI()
-        {
-            Piece piece = (Piece)target;
-
-            if (!generateSpritesFlag)
-            {
-                base.OnInspectorGUI();
-            }
-
-            if (GUILayout.Button("Generate Sprites"))
-            {
-                generateSpritesFlag = true;
-            }
-
-        }
-        private void GenerateSprites()
-        {
-            Piece piece = (Piece)target;
-            string folderPath = "Assets/Sprites/Fish/";
-            switch (piece.type)
-            {
-                case PieceType.threeX3:
-                    piece.piecePart = new Sprite[10];
-                    folderPath += "3x3";
-                    break;
-                case PieceType.fourX3:
-                    piece.piecePart = new Sprite[13];
-                    folderPath += "4x3";
-                    break;
-                case PieceType.fiveX3:
-                    piece.piecePart = new Sprite[16];
-                    folderPath += "5x3";
-                    break;
-            }
-            GetSprites(piece, folderPath);
-        }
-        private static void GetSprites(Piece piece, string folderPath)
-        {
-            string[] imagePaths = AssetDatabase.FindAssets("t:Texture2D", new[] { folderPath });
-
-            if (imagePaths.Length > 0)
-            {
-                int randomIndex = Random.Range(0, imagePaths.Length);
-                string randomImagePath = AssetDatabase.GUIDToAssetPath(imagePaths[randomIndex]);
-
-                Texture2D randomImage = AssetDatabase.LoadAssetAtPath<Texture2D>(randomImagePath);
-                if (randomImage != null)
+                sourceTexture = randomImage;
+                int columns = 0;
+                for (int i = 0; i < numImages.Length; i++)
                 {
-                    Sprite[] sprites = AssetDatabase.LoadAllAssetsAtPath(randomImagePath).OfType<Sprite>().ToArray();
-
-                    if (sprites.Length >= piece.piecePart.Length)
+                    if (numImages[i] == fatherOfPieces.transform.childCount)
                     {
-                        for (int i = 0; i < piece.piecePart.Length; i++)
-                        {
-                            piece.piecePart[i] = sprites[i];
-                        }
-                        piece.panelGridImage = sprites[sprites.Length - 1];
+                        columns = numColumsRows[i];
+                        gridLayoutGroup.constraintCount = numColumsRows[i];
+                        gridLayoutGroup.cellSize = new Vector2(numCellSize[i], numCellSize[i]);
+                        //BackGround.rectTransform.sizeDelta = new Vector2(gridLayoutGroup.cellSize.x, 
+                        //gridLayoutGroup.cellSize.y) * gridLayoutGroup.constraintCount;
+                        //unnecessary at the moment, but useful in different resolutions
                     }
                 }
-                else
+                foreach (var item in sprites)
                 {
-                    Debug.Log("Failed to load image");
+                    item.rectTransform.sizeDelta = gridLayoutGroup.cellSize;
+                }
+
+
+                int rows = columns;
+
+                int spriteIndex = 0;
+
+                for (int y = 0; y < rows; y++)
+                {
+                    for (int x = 0; x < columns; x++)
+                    {
+                        sprites[spriteIndex].sprite = GetSpriteCut(x, y, columns, rows);
+                        spriteIndex++;
+                    }
                 }
             }
             else
             {
-                Debug.Log("No Images Found in the Specified Folder");
+                Debug.Log("Failed to load image");
             }
-            EditorUtility.SetDirty(piece);
-            AssetDatabase.SaveAssets();
+        }
+        else
+        {
+            Debug.Log("No Images Found in the Specified Folder");
         }
     }
-#endif
+
+
+    private Sprite GetSpriteCut(int x, int y, int columns, int rows)
+    {
+        int spriteWidth = sourceTexture.width / rows;
+        int spriteHeight = sourceTexture.height / columns;
+
+        Texture2D slicedTexture = new Texture2D(spriteWidth, spriteHeight);
+
+        Color[] pixels = sourceTexture.GetPixels(x * spriteWidth, (rows - 1 - y) * spriteHeight, spriteWidth, spriteHeight);
+        slicedTexture.SetPixels(pixels);
+        slicedTexture.Apply();
+
+        Sprite slicedSprite = Sprite.Create(slicedTexture, new Rect(0, 0, spriteWidth, spriteHeight), Vector2.zero);
+        return slicedSprite;
+    }
 }

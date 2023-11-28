@@ -72,4 +72,4 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
 # Temporary Images
-/[Aa]ssets/[Ss]prites*
+/[Aa]ssets/[Rr]esources/*
