@@ -33,6 +33,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
     {
         return myId;
     }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (dragPiece.mouseImg.transform.childCount > 0)
