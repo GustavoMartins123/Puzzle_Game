@@ -2,7 +2,8 @@ How to setup:
 
 1 - CLone the code and add project in unity hub.  
 
-2 - Open, go to folder "Resources" and add a folder "Sprites/Fish", or just update the patch in "Piece.cs" line 49, the code "string folderPath = "Sprites/Fish";".  
+2 - Open, go to folder "Resources" and add a folder "Sprites/Fish", or just update the patch in "Piece.cs" line 49, the code "string folderPath = "Sprites/Fish";", 
+    add all images here.  
 
 3 - Set all images to "Sprite (2D and UI).  
 
