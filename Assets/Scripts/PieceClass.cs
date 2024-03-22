@@ -14,11 +14,6 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
     {
         inputManager.OnPauseCalled += InputManager_OnPauseCalled;
     }
-
-    public Sprite GetSprite()
-    {
-        return sprite.sprite;
-    }
     public void SetSprite(Sprite sprite)
     {
         this.sprite.sprite = sprite;
@@ -27,11 +22,6 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
     public void SetId(int id)
     {
         myId = id;
-    }
-
-    public int GetId()
-    {
-        return myId;
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -57,7 +47,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
             dragPiece.piecePreviousId = myId;
             piece.transform.SetParent(dragPiece.mouseImg.transform);
             piece.transform.localPosition = Vector2.Lerp(piece.transform.localPosition, Vector2.zero, 0.1f);
-            GameManager.Instance.inputManager.OnPieceChanged?.Invoke(this, true);
+            GameManager.Instance.InvokeInputManager(this, true);
         }
         else
         {
@@ -75,7 +65,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
             {
                 piece.transform.SetParent(slot.transform);
                 piece.pieceInSlot = true;
-                GameManager.Instance.inputManager.OnPieceChanged?.Invoke(this, false);
+                GameManager.Instance.InvokeInputManager(this, false);
                 piece.transform.localRotation = Quaternion.identity;
                 piece.transform.localPosition = Vector2.zero;
                 dragPiece.mouseImg.transform.localPosition = Vector3.zero;
@@ -85,7 +75,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
             else
             {
                 piece.transform.SetParent(GameManager.Instance.fatherOfPieces.transform);
-                GameManager.Instance.inputManager.OnPieceChanged?.Invoke(this, false);
+                GameManager.Instance.InvokeInputManager(this, false);
                 dragPiece.mouseImg.transform.localPosition = Vector3.zero;
                 dragPiece.mouseImg.transform.SetAsLastSibling();
                 dragPiece.pieceClass = null;
@@ -98,7 +88,7 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
         if (dragPiece.pieceClass != null)
         {
             dragPiece.pieceClass.transform.SetParent(GameManager.Instance.fatherOfPieces.transform);
-            GameManager.Instance.inputManager.OnPieceChanged?.Invoke(this, false);
+            GameManager.Instance.InvokeInputManager(this, false);
             dragPiece.mouseImg.transform.localPosition = Vector3.zero;
             dragPiece.mouseImg.transform.SetAsLastSibling();
         }

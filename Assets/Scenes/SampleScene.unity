@@ -1024,7 +1024,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1657211857}
   - component: {fileID: 1657211856}
-  - component: {fileID: 1657211863}
   - component: {fileID: 1657211858}
   - component: {fileID: 1657211864}
   - component: {fileID: 1657211865}
@@ -1086,37 +1085,6 @@ MonoBehaviour:
   mouseImg: {fileID: 4075263341792268296}
   piecePreviousId: 0
   pieceClass: {fileID: 0}
---- !u!114 &1657211863
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1657211855}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_Actions: {fileID: -944628639613478452, guid: 9003aedf46d67f04baa73cd097107f34,
-    type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
-  m_DefaultActionMap: Move
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 337620634}
 --- !u!114 &1657211864
 MonoBehaviour:
   m_ObjectHideFlags: 0

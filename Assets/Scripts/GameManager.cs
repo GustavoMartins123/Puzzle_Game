@@ -106,5 +106,9 @@ public class GameManager : MonoBehaviour
         return closestSlot;
     }
     
+    public void InvokeInputManager(object caller, bool pieceChanged)
+    {
+        inputManager.OnPieceChanged?.Invoke(caller, pieceChanged);
+    }
 
 }

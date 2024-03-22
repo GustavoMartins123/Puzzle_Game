@@ -66,9 +66,6 @@ public class Piece: MonoBehaviour
                         columns = numColumsRows[i];
                         gridLayoutGroup.constraintCount = numColumsRows[i];
                         gridLayoutGroup.cellSize = new Vector2(numCellSize[i], numCellSize[i]);
-                        //BackGround.rectTransform.sizeDelta = new Vector2(gridLayoutGroup.cellSize.x, 
-                        //gridLayoutGroup.cellSize.y) * gridLayoutGroup.constraintCount;
-                        //unnecessary at the moment, but useful in different resolutions
                     }
                 }
                 foreach (var item in sprites)

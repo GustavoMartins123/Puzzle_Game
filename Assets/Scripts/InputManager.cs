@@ -7,7 +7,6 @@ public class InputManager: MonoBehaviour
     public EventHandler<bool> OnPieceChanged;
     public EventHandler OnPauseCalled;
     private PlayerInputActions2 inputActions;
-    private PlayerInputActions2.MoveActions moveActions;
     [SerializeField] private UiDragPiece dragPiece;
 
     [SerializeField] private GameObject panelWin;
@@ -15,23 +14,18 @@ public class InputManager: MonoBehaviour
     private void Awake()
     {
         inputActions = new PlayerInputActions2();
-        moveActions = inputActions.Move;
-        moveActions.MousePos.performed += ctx => GetMousePosition();
-        moveActions.Pause.performed += ctx => Pause();
-    }
-    private void OnEnable()
-    {
-        moveActions.Enable();
-    }
-
-    private void OnDisable()
-    {
-        moveActions.Disable();
+        inputActions.Enable();
+        inputActions.Move.MousePos.performed += ctx => GetMousePosition();
+        inputActions.Move.Pause.performed += ctx => Pause();
     }
 
     private void GetMousePosition()
     {
-        Vector2 mousePosition = moveActions.MousePos.ReadValue<Vector2>();
+        if(dragPiece == null)
+        {
+            return;
+        }
+        Vector2 mousePosition = inputActions.Move.MousePos.ReadValue<Vector2>();
 
         float screenWidth = Screen.currentResolution.width;
         float screenHeight = Screen.currentResolution.height;
