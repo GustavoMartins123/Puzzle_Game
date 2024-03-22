@@ -12,4 +12,4 @@ How to setup:
 5 - Click on play and test.  
 
 6 - If the divisions between the images are not appearing when you start, go to the following object "Canvas" and then to its child "Panel_3x3", 
-    see if in the grid layout group in the spacing, if the value is different from zero, if it is at zero , test 1 or 2  
+    see if in the grid layout group in spacing the value is non-zero, if it is zero, test 1 or 2.    
