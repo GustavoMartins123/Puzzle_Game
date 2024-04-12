@@ -68,7 +68,7 @@ public class GameManager : MonoBehaviour
             PositionAndRotation(pieceClass);
             GameObject gameSlot = Instantiate(this.slot, panelGrid.transform);
             Slot slot = gameSlot.GetComponent<Slot>();
-            slot.GetComponent<Image>().rectTransform.sizeDelta = piecePart.GetSprites()[x].rectTransform.sizeDelta;
+            slot.GetImage().rectTransform.sizeDelta = piecePart.GetSprites()[x].rectTransform.sizeDelta;
             slot.SetId(x);
             slots.Add(slot);
         }

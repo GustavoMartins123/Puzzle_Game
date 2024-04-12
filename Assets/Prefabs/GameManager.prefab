@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1146364410027147970
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2998838495955235066}
+  - component: {fileID: 8119305716765088461}
+  - component: {fileID: 6291127825855632158}
+  - component: {fileID: 2021732851910983855}
+  - component: {fileID: 1662506272708354810}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2998838495955235066
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146364410027147970}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8119305716765088461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146364410027147970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66631a74de3423e44bcbfd8ffd39abd6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pieces: []
+  slots: []
+  slot: {fileID: 0}
+  fatherOfPieces: {fileID: 0}
+  panelGrid: {fileID: 0}
+  dragPiece: {fileID: 6291127825855632158}
+  piecePart: {fileID: 1662506272708354810}
+  panelWin: {fileID: 0}
+  inputManager: {fileID: 2021732851910983855}
+--- !u!114 &6291127825855632158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146364410027147970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92ffd7fabdbc2f34889d52b04d3ffe87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mouseImg: {fileID: 0}
+  piecePreviousId: 0
+  pieceClass: {fileID: 0}
+--- !u!114 &2021732851910983855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146364410027147970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c292dcc3d8da3e4fab3ef890651d605, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dragPiece: {fileID: 6291127825855632158}
+  panelWin: {fileID: 0}
+--- !u!114 &1662506272708354810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1146364410027147970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 864f705999b603a4fb45a545c2703a9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pieceObjectReference: {fileID: 0}
+  fatherOfPieces: {fileID: 0}
+  BackGround: {fileID: 0}
+  gridLayoutGroup: {fileID: 0}
+  numImages: 04000000090000001000000019000000
+  numColumsRows: 02000000030000000400000005000000
+  numCellSize: 2c010000c80000009600000078000000
