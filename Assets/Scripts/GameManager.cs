@@ -8,21 +8,19 @@ public class GameManager : MonoBehaviour
     [SerializeField] private List<PieceClass> pieces = new List<PieceClass>();
     [SerializeField] private List<Slot> slots = new List<Slot>();
     [SerializeField] private GameObject slot;
-    public GameObject fatherOfPieces;
+    [SerializeField] private GameObject fatherOfPieces;
     [SerializeField] private GameObject panelGrid;
-    [Space(2)]
-    [Header("Input")]
-    public InputManager inputManager;
-    
     [SerializeField] private UiDragPiece dragPiece;
-
     [Space(3)]
     [Header("Sprite")]
     [SerializeField] private Piece piecePart;
 
-
     [Header("PanelWin")]
     [SerializeField] private GameObject panelWin;
+
+    [Space(2)]
+    [Header("Input")]
+    [SerializeField] private InputManager inputManager;
     private void Awake()
     {
         if (Instance == null)
@@ -42,11 +40,11 @@ public class GameManager : MonoBehaviour
     }
     private void PieceManager_OnPieceChanged(object sender, bool e)
     {
-        dragPiece.mouseImg.gameObject.SetActive(e);
+        dragPiece.GetMouseImg().gameObject.SetActive(e);
         bool allTrue = true;
         foreach (var item in pieces)
         {
-            if (!item.pieceInSlot)
+            if (!item.GetPieceInSlot())
             {
                 allTrue = false;
                 break;
@@ -61,20 +59,20 @@ public class GameManager : MonoBehaviour
 
     private void PlacePiecesAndSlots()
     {
-        for (int x = 0; x < piecePart.sprites.Count; x++)
+        for (int x = 0; x < piecePart.GetSprites().Count; x++)
         {
-            PieceClass pieceClass = piecePart.sprites[x].GetComponent<PieceClass>();
+            PieceClass pieceClass = piecePart.GetSprites()[x].GetComponent<PieceClass>();
             pieces.Add(pieceClass);
             pieceClass.SetId(x);
-            pieceClass.SetSprite(piecePart.sprites[x].sprite);
+            pieceClass.SetSprite(piecePart.GetSprites()[x].sprite);
             PositionAndRotation(pieceClass);
             GameObject gameSlot = Instantiate(this.slot, panelGrid.transform);
             Slot slot = gameSlot.GetComponent<Slot>();
-            slot.GetComponent<Image>().rectTransform.sizeDelta = piecePart.sprites[x].rectTransform.sizeDelta;
-            slot.id = x;
+            slot.GetComponent<Image>().rectTransform.sizeDelta = piecePart.GetSprites()[x].rectTransform.sizeDelta;
+            slot.SetId(x);
             slots.Add(slot);
         }
-        dragPiece.mouseImg.transform.SetAsLastSibling();
+        dragPiece.GetMouseImg().transform.SetAsLastSibling();
     }
 
     
@@ -87,6 +85,10 @@ public class GameManager : MonoBehaviour
         pieceClass.transform.localRotation = rotation;
     }
     
+    public Transform GetFatherOfPiecesTransform()
+    {
+        return fatherOfPieces.transform;
+    }
 
     public Slot GetClosestSlotToPiece(PieceClass piece)
     {

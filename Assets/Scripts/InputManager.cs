@@ -1,19 +1,20 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using static UnityEngine.PlayerLoop.PostLateUpdate;
 
 public class InputManager: MonoBehaviour
 {
     public EventHandler<bool> OnPieceChanged;
     public EventHandler OnPauseCalled;
-    private PlayerInputActions2 inputActions;
+    private PlayerInputActions inputActions;
     [SerializeField] private UiDragPiece dragPiece;
 
     [SerializeField] private GameObject panelWin;
     private bool pause = false;
     private void Awake()
     {
-        inputActions = new PlayerInputActions2();
+        inputActions = new PlayerInputActions();
         inputActions.Enable();
         inputActions.Move.MousePos.performed += ctx => GetMousePosition();
         inputActions.Move.Pause.performed += ctx => Pause();
@@ -29,13 +30,13 @@ public class InputManager: MonoBehaviour
 
         float screenWidth = Screen.currentResolution.width;
         float screenHeight = Screen.currentResolution.height;
-        Vector2 currentPosition = dragPiece.mouseImg.rectTransform.position;
+        Vector2 currentPosition = dragPiece.GetMouseImg().rectTransform.position;
 
         Vector2 clampedPosition = new Vector2(Mathf.Clamp(currentPosition.x, -screenWidth, screenWidth),
             Mathf.Clamp(currentPosition.y, -screenHeight, screenHeight));
 
         Vector2 smoothedPosition = Vector2.Lerp(clampedPosition, mousePosition, 0.5f);
-        dragPiece.mouseImg.rectTransform.position = smoothedPosition;
+        dragPiece.GetMouseImg().rectTransform.position = smoothedPosition;
     }
 
     private void Pause()

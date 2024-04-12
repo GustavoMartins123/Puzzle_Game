@@ -4,12 +4,12 @@ using UnityEngine.UI;
 
 public class Piece: MonoBehaviour
 {
-    public PieceClass pieceObjectReference;
-    [SerializeField] GameObject fatherOfPieces;
-    public Image BackGround;
-    public List<Image> sprites = new List<Image>();
+    [SerializeField] private PieceClass pieceObjectReference;
+    [SerializeField] private GameObject fatherOfPieces;
+    [SerializeField] private Image BackGround;
     [SerializeField] GridLayoutGroup gridLayoutGroup;
-    Texture2D sourceTexture;
+    private List<Image> sprites = new List<Image>();
+    private Texture2D sourceTexture;
 
     [SerializeField]
     int[] numImages =
@@ -29,7 +29,7 @@ public class Piece: MonoBehaviour
         300,200,150,120
     };
 
-    public void Awake()
+    private void Awake()
     {
         InstantiateSprites(numImages[Random.Range(0, numImages.Length)]);
         LoadAndSliceTexture();
@@ -42,6 +42,21 @@ public class Piece: MonoBehaviour
             GameObject gameObject = Instantiate(pieceObjectReference.gameObject, fatherOfPieces.transform);
             sprites.Add(gameObject.GetComponent<Image>());
         }
+    }
+
+    private Sprite GetSpriteCut(int x, int y, int columns, int rows)
+    {
+        int spriteWidth = sourceTexture.width / rows;
+        int spriteHeight = sourceTexture.height / columns;
+
+        Texture2D slicedTexture = new Texture2D(spriteWidth, spriteHeight);
+
+        Color[] pixels = sourceTexture.GetPixels(x * spriteWidth, (rows - 1 - y) * spriteHeight, spriteWidth, spriteHeight);
+        slicedTexture.SetPixels(pixels);
+        slicedTexture.Apply();
+
+        Sprite slicedSprite = Sprite.Create(slicedTexture, new Rect(0, 0, spriteWidth, spriteHeight), Vector2.zero);
+        return slicedSprite;
     }
 
     public void LoadAndSliceTexture()
@@ -98,19 +113,8 @@ public class Piece: MonoBehaviour
         }
     }
 
-
-    private Sprite GetSpriteCut(int x, int y, int columns, int rows)
+    public List<Image> GetSprites()
     {
-        int spriteWidth = sourceTexture.width / rows;
-        int spriteHeight = sourceTexture.height / columns;
-
-        Texture2D slicedTexture = new Texture2D(spriteWidth, spriteHeight);
-
-        Color[] pixels = sourceTexture.GetPixels(x * spriteWidth, (rows - 1 - y) * spriteHeight, spriteWidth, spriteHeight);
-        slicedTexture.SetPixels(pixels);
-        slicedTexture.Apply();
-
-        Sprite slicedSprite = Sprite.Create(slicedTexture, new Rect(0, 0, spriteWidth, spriteHeight), Vector2.zero);
-        return slicedSprite;
+        return sprites;
     }
 }

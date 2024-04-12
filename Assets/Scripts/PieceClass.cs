@@ -7,9 +7,9 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
 {
     [SerializeField] private Image sprite = null;
     [SerializeField] private int myId = 0;
-    public bool pieceInSlot = false;
-    public UiDragPiece dragPiece;
     [SerializeField] private InputManager inputManager;
+    [SerializeField] private UiDragPiece dragPiece;
+    private bool pieceInSlot = false;
     private void Start()
     {
         inputManager.OnPauseCalled += InputManager_OnPauseCalled;
@@ -26,10 +26,9 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (dragPiece.mouseImg.transform.childCount > 0)
+        if (dragPiece.GetMouseImg().transform.childCount > 0)
         {
-            dragPiece.mouseImg.transform.GetChild(0).SetParent(GameManager.Instance.fatherOfPieces.transform);
-            return;
+            dragPiece.GetMouseImg().transform.GetChild(0).SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
         }
     }
 
@@ -40,18 +39,14 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
             return;
         }
         PieceClass piece = eventData.pointerDrag.transform.GetComponent<PieceClass>();
-        dragPiece.pieceClass = piece;
+        dragPiece.SetPieceClass(piece);
         if (piece != null && !piece.pieceInSlot)
         {
             
-            dragPiece.piecePreviousId = myId;
-            piece.transform.SetParent(dragPiece.mouseImg.transform);
+            dragPiece.SetPiecePreviousId(myId);
+            piece.transform.SetParent(dragPiece.GetMouseImg().transform);
             piece.transform.localPosition = Vector2.Lerp(piece.transform.localPosition, Vector2.zero, 0.1f);
             GameManager.Instance.InvokeInputManager(this, true);
-        }
-        else
-        {
-            return;
         }
     }
 
@@ -61,36 +56,46 @@ public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragH
         if (piece != null)
         {
             Slot slot = GameManager.Instance.GetClosestSlotToPiece(piece);
-            if (slot != null && slot.id == dragPiece.piecePreviousId)
+            if (slot != null && slot.GetId() == dragPiece.GetPiecePreviousId())
             {
                 piece.transform.SetParent(slot.transform);
                 piece.pieceInSlot = true;
                 GameManager.Instance.InvokeInputManager(this, false);
                 piece.transform.localRotation = Quaternion.identity;
                 piece.transform.localPosition = Vector2.zero;
-                dragPiece.mouseImg.transform.localPosition = Vector3.zero;
-                dragPiece.mouseImg.transform.SetAsLastSibling();
-                dragPiece.pieceClass = null;
+                dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
+                dragPiece.GetMouseImg().transform.SetAsLastSibling();
+                dragPiece.SetPieceClass(null);
             }
             else
             {
-                piece.transform.SetParent(GameManager.Instance.fatherOfPieces.transform);
+                piece.transform.SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
                 GameManager.Instance.InvokeInputManager(this, false);
-                dragPiece.mouseImg.transform.localPosition = Vector3.zero;
-                dragPiece.mouseImg.transform.SetAsLastSibling();
-                dragPiece.pieceClass = null;
+                dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
+                dragPiece.GetMouseImg().transform.SetAsLastSibling();
+                dragPiece.SetPieceClass(null);
             }
         }
     }
 
     private void InputManager_OnPauseCalled(object sender, EventArgs e)
     {
-        if (dragPiece.pieceClass != null)
+        if (dragPiece.GetPieceClass() != null)
         {
-            dragPiece.pieceClass.transform.SetParent(GameManager.Instance.fatherOfPieces.transform);
+            dragPiece.GetPieceClass().transform.SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
             GameManager.Instance.InvokeInputManager(this, false);
-            dragPiece.mouseImg.transform.localPosition = Vector3.zero;
-            dragPiece.mouseImg.transform.SetAsLastSibling();
+            dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
+            dragPiece.GetMouseImg().transform.SetAsLastSibling();
         }
+    }
+
+    public UiDragPiece GetPiece()
+    {
+        return dragPiece;
+    }
+
+    public bool GetPieceInSlot()
+    {
+        return pieceInSlot;
     }
 }
