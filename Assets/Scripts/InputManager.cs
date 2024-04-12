@@ -1,7 +1,6 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static UnityEngine.PlayerLoop.PostLateUpdate;
 
 public class InputManager: MonoBehaviour
 {
