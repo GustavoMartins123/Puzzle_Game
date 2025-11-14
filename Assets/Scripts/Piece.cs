@@ -2,115 +2,116 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Manages puzzle piece generation and image slicing.
+/// Refactored to use modular configuration and services.
+/// </summary>
 public class Piece: MonoBehaviour
 {
+    [Header("References")]
     [SerializeField] private PieceClass pieceObjectReference;
     [SerializeField] private GameObject fatherOfPieces;
     [SerializeField] private Image BackGround;
-    [SerializeField] GridLayoutGroup gridLayoutGroup;
+    [SerializeField] private GridLayoutGroup gridLayoutGroup;
+    
+    [Header("Configuration")]
+    [SerializeField] private PuzzleConfiguration configuration;
+    [Tooltip("If true, selects a random configuration from available presets")]
+    [SerializeField] private bool useRandomDifficulty = true;
+    [SerializeField] private PuzzleConfiguration[] difficultyPresets;
+
+    [Header("Animation")]
+    [SerializeField] private PuzzleAnimationController animationController;
+    [SerializeField] private bool enableSpawnAnimations = true;
+
     private List<Image> sprites = new List<Image>();
-    private Texture2D sourceTexture;
-
-    [SerializeField]
-    int[] numImages =
-    {
-        4,9,16,25
-    };
-
-    [SerializeField]
-    int[] numColumsRows =
-    {
-        2,3,4,5
-    };
-
-    [SerializeField]
-    int[] numCellSize =
-    {
-        300,200,150,120
-    };
+    private ImageSlicingService slicingService;
 
     private void Awake()
     {
-        InstantiateSprites(numImages[Random.Range(0, numImages.Length)]);
+        // Select configuration
+        if (useRandomDifficulty && difficultyPresets != null && difficultyPresets.Length > 0)
+        {
+            configuration = difficultyPresets[Random.Range(0, difficultyPresets.Length)];
+            Debug.Log($"Selected difficulty: {configuration.difficultyName} ({configuration.gridSize}x{configuration.gridSize})");
+        }
+        else if (configuration == null)
+        {
+            Debug.LogError("No puzzle configuration assigned! Creating default 3x3 configuration.");
+            configuration = PuzzleConfiguration.CreatePreset("Default", 3, 200);
+        }
+
+        // Initialize services
+        slicingService = new ImageSlicingService(configuration);
+        
+        // Setup grid layout
+        ConfigureGridLayout();
+        
+        // Generate pieces
+        InstantiateSprites(configuration.TotalPieces);
         LoadAndSliceTexture();
     }
 
+    /// <summary>
+    /// Configures the grid layout based on the configuration
+    /// </summary>
+    private void ConfigureGridLayout()
+    {
+        gridLayoutGroup.constraintCount = configuration.gridSize;
+        gridLayoutGroup.cellSize = slicingService.GetCellSize();
+        gridLayoutGroup.spacing = new Vector2(configuration.gridSpacing, configuration.gridSpacing);
+    }
+
+    /// <summary>
+    /// Instantiates the specified number of piece game objects
+    /// </summary>
     private void InstantiateSprites(int num)
     {
         for (int i = 0; i < num; i++)
         {
             GameObject gameObject = Instantiate(pieceObjectReference.gameObject, fatherOfPieces.transform);
-            sprites.Add(gameObject.GetComponent<Image>());
+            Image pieceImage = gameObject.GetComponent<Image>();
+            sprites.Add(pieceImage);
+            
+            // Set size to match cell size
+            pieceImage.rectTransform.sizeDelta = slicingService.GetCellSize();
+
+            // Animate spawn if enabled
+            if (enableSpawnAnimations && animationController != null)
+            {
+                animationController.AnimatePieceSpawn(gameObject.transform, i * 0.02f);
+            }
         }
     }
 
-    private Sprite GetSpriteCut(int x, int y, int columns, int rows)
-    {
-        int spriteWidth = sourceTexture.width / rows;
-        int spriteHeight = sourceTexture.height / columns;
-
-        Texture2D slicedTexture = new Texture2D(spriteWidth, spriteHeight);
-
-        Color[] pixels = sourceTexture.GetPixels(x * spriteWidth, (rows - 1 - y) * spriteHeight, spriteWidth, spriteHeight);
-        slicedTexture.SetPixels(pixels);
-        slicedTexture.Apply();
-
-        Sprite slicedSprite = Sprite.Create(slicedTexture, new Rect(0, 0, spriteWidth, spriteHeight), Vector2.zero);
-        return slicedSprite;
-    }
-
+    /// <summary>
+    /// Loads and slices a random texture into puzzle pieces.
+    /// Now using the ImageSlicingService for automatic dimension calculation!
+    /// </summary>
     public void LoadAndSliceTexture()
     {
-        string folderPath = "Sprites/Fish";
-        Texture2D[] textures = Resources.LoadAll<Texture2D>(folderPath);
-
-        if (textures.Length > 0)
+        // Load random texture
+        Texture2D sourceTexture = slicingService.LoadRandomTexture();
+        
+        if (sourceTexture == null)
         {
-            int randomIndex = Random.Range(0, textures.Length);
-            Texture2D randomImage = textures[randomIndex];
-            BackGround.sprite = Sprite.Create(randomImage, new Rect(0, 0, randomImage.width, randomImage.height), Vector2.zero);
-
-            if (randomImage != null)
-            {
-                sourceTexture = randomImage;
-                int columns = 0;
-                for (int i = 0; i < numImages.Length; i++)
-                {
-                    if (numImages[i] == fatherOfPieces.transform.childCount)
-                    {
-                        columns = numColumsRows[i];
-                        gridLayoutGroup.constraintCount = numColumsRows[i];
-                        gridLayoutGroup.cellSize = new Vector2(numCellSize[i], numCellSize[i]);
-                    }
-                }
-                foreach (var item in sprites)
-                {
-                    item.rectTransform.sizeDelta = gridLayoutGroup.cellSize;
-                }
-
-
-                int rows = columns;
-
-                int spriteIndex = 0;
-
-                for (int y = 0; y < rows; y++)
-                {
-                    for (int x = 0; x < columns; x++)
-                    {
-                        sprites[spriteIndex].sprite = GetSpriteCut(x, y, columns, rows);
-                        spriteIndex++;
-                    }
-                }
-            }
-            else
-            {
-                Debug.Log("Failed to load image");
-            }
+            Debug.LogError("Failed to load texture. Check that images exist in Resources path and have Read/Write enabled.");
+            return;
         }
-        else
+
+        // Set background image
+        BackGround.sprite = slicingService.CreateSpriteFromTexture(sourceTexture);
+
+        // Slice texture into pieces - fully automatic now!
+        List<Sprite> slicedSprites = slicingService.SliceTexture(sourceTexture);
+
+        // Assign sprites to piece game objects
+        for (int i = 0; i < sprites.Count && i < slicedSprites.Count; i++)
         {
-            Debug.Log("No Images Found in the Specified Folder");
+            sprites[i].sprite = slicedSprites[i];
         }
+
+        Debug.Log($"Successfully sliced image into {slicedSprites.Count} pieces ({configuration.gridSize}x{configuration.gridSize})");
     }
 
     public List<Image> GetSprites()

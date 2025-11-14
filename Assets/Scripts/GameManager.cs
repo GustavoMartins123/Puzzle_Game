@@ -2,25 +2,33 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Main game manager for the puzzle game.
+/// Coordinates piece placement, win conditions, and game flow.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    
+    [Header("Game Objects")]
     [SerializeField] private List<PieceClass> pieces = new List<PieceClass>();
     [SerializeField] private List<Slot> slots = new List<Slot>();
     [SerializeField] private GameObject slot;
     [SerializeField] private GameObject fatherOfPieces;
     [SerializeField] private GameObject panelGrid;
     [SerializeField] private UiDragPiece dragPiece;
-    [Space(3)]
+    
     [Header("Sprite")]
     [SerializeField] private Piece piecePart;
 
-    [Header("PanelWin")]
+    [Header("UI")]
     [SerializeField] private GameObject panelWin;
 
-    [Space(2)]
     [Header("Input")]
     [SerializeField] private InputManager inputManager;
+    
+    [Header("Animation")]
+    [SerializeField] private PuzzleAnimationController animationController;
     private void Awake()
     {
         if (Instance == null)
@@ -53,6 +61,17 @@ public class GameManager : MonoBehaviour
 
         if (allTrue)
         {
+            // Trigger completion celebration animation
+            if (animationController != null)
+            {
+                Transform[] pieceTransforms = new Transform[pieces.Count];
+                for (int i = 0; i < pieces.Count; i++)
+                {
+                    pieceTransforms[i] = pieces[i].transform;
+                }
+                animationController.AnimatePuzzleCompletion(pieceTransforms);
+            }
+            
             panelWin.SetActive(true);
         }
     }
@@ -75,8 +94,9 @@ public class GameManager : MonoBehaviour
         dragPiece.GetMouseImg().transform.SetAsLastSibling();
     }
 
-    
-
+    /// <summary>
+    /// Positions and randomizes rotation of a puzzle piece
+    /// </summary>
     private void PositionAndRotation(PieceClass pieceClass)
     {
         Vector3 pos = new Vector2(Random.Range(-Screen.currentResolution.width * 0.4f, Screen.currentResolution.width * 0.4f), Random.Range(-Screen.currentResolution.height * 0.4f, Screen.currentResolution.height * 0.4f));
