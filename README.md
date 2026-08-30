@@ -28,5 +28,5 @@ gerados matematicamente em tempo de execução; arestas vizinhas são complement
 portanto a imagem montada continua inteira e sem distorção.
 
 Ao iniciar uma partida, a interface mostra caixas de seleção para todos os estilos.
-Cada formato fixo possui uma miniatura criada pelo próprio gerador procedural; o modo
-totalmente aleatório permanece selecionável, mas não exibe preview.
+Cada formato fixo possui uma miniatura da imagem da partida recortada pelo próprio gerador
+procedural; o modo totalmente aleatório permanece selecionável, mas não exibe preview.

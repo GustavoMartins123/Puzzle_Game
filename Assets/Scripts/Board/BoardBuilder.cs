@@ -30,6 +30,7 @@ public class BoardBuilder : MonoBehaviour
     public int Build(
         PuzzleConfig config,
         PuzzleCutStyle cutStyle,
+        Texture2D texture,
         DragLayer dragLayer,
         Action<Slot> onSlotFilled)
     {
@@ -45,6 +46,12 @@ public class BoardBuilder : MonoBehaviour
             return 0;
         }
 
+        if (texture == null)
+        {
+            Debug.LogError("BoardBuilder: puzzle texture is missing.", this);
+            return 0;
+        }
+
         if (!config.TryValidate(out string validationError))
         {
             Debug.LogError($"BoardBuilder: invalid configuration: {validationError}.", config);
@@ -57,12 +64,10 @@ public class BoardBuilder : MonoBehaviour
             return 0;
         }
 
-        Texture2D texture;
         PuzzleConfig.Layout layout;
         ProceduralPuzzleGeometry[,] geometries;
         try
         {
-            texture = config.PickImage();
             layout = config.PickLayout();
             geometries = ProceduralPuzzleGenerator.Create(
                 layout.divisions,

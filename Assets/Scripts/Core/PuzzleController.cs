@@ -12,6 +12,7 @@ public class PuzzleController : MonoBehaviour
 
     private GameInput input;
     private PuzzleCutSelectionMenu selectionMenu;
+    private Texture2D puzzleTexture;
     private int totalPieces;
     private int placedPieces;
     private bool started;
@@ -43,11 +44,20 @@ public class PuzzleController : MonoBehaviour
             return;
         }
 
-        selectionMenu = PuzzleCutSelectionMenu.Show(
-            selectionRoot,
-            config.CutStyle,
-            config.CutDepth,
-            StartPuzzle);
+        try
+        {
+            puzzleTexture = config.PickImage();
+            selectionMenu = PuzzleCutSelectionMenu.Show(
+                selectionRoot,
+                config.CutStyle,
+                config.CutDepth,
+                puzzleTexture,
+                StartPuzzle);
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"PuzzleController: cut selection could not be created: {exception.Message}", this);
+        }
     }
 
     private void Update()
@@ -68,7 +78,10 @@ public class PuzzleController : MonoBehaviour
         if (started)
             throw new System.InvalidOperationException("The puzzle has already started.");
 
-        int builtPieces = builder.Build(config, cutStyle, dragLayer, OnSlotFilled);
+        if (puzzleTexture == null)
+            throw new System.InvalidOperationException("The selected puzzle texture is missing.");
+
+        int builtPieces = builder.Build(config, cutStyle, puzzleTexture, dragLayer, OnSlotFilled);
         if (builtPieces <= 0) return false;
 
         totalPieces = builtPieces;

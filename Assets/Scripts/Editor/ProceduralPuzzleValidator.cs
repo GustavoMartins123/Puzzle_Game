@@ -47,6 +47,11 @@ public static class ProceduralPuzzleValidator
             "ProceduralPuzzleUiValidation",
             typeof(RectTransform),
             typeof(Canvas));
+        var previewTexture = new Texture2D(64, 64)
+        {
+            name = "ProceduralPuzzleUiValidationTexture",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
 
         try
         {
@@ -54,6 +59,7 @@ public static class ProceduralPuzzleValidator
                 (RectTransform)canvasObject.transform,
                 PuzzleCutStyle.FullyRandom,
                 CutDepth,
+                previewTexture,
                 _ => true);
             Canvas.ForceUpdateCanvases();
 
@@ -73,6 +79,21 @@ public static class ProceduralPuzzleValidator
                 throw new InvalidOperationException(
                     $"Selection UI has {buttons.Length} confirmation buttons; expected 1.");
 
+            foreach (ProceduralPuzzlePreviewGraphic preview in previews)
+            {
+                if (preview.mainTexture != previewTexture)
+                    throw new InvalidOperationException(
+                        $"Selection UI preview '{preview.name}' is missing the puzzle texture.");
+                if (preview.canvasRenderer.GetAlpha() < 0.99f)
+                    throw new InvalidOperationException(
+                        $"Selection UI preview '{preview.name}' is transparent.");
+
+                Mesh mesh = preview.canvasRenderer.GetMesh();
+                if (mesh == null || mesh.vertexCount < 3 || mesh.triangles.Length < 3)
+                    throw new InvalidOperationException(
+                        $"Selection UI preview '{preview.name}' generated an empty mesh.");
+            }
+
             Transform randomCard = menu.transform.Find("Panel/Options/FullyRandom");
             if (randomCard == null)
                 throw new InvalidOperationException("Selection UI is missing the FullyRandom option.");
@@ -84,6 +105,7 @@ public static class ProceduralPuzzleValidator
         finally
         {
             UnityEngine.Object.DestroyImmediate(canvasObject);
+            UnityEngine.Object.DestroyImmediate(previewTexture);
         }
     }
 

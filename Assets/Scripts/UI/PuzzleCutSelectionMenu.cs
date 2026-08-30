@@ -21,6 +21,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform parent,
         PuzzleCutStyle initialStyle,
         float cutDepth,
+        Texture2D previewTexture,
         Func<PuzzleCutStyle, bool> onConfirmed)
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
@@ -28,6 +29,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             throw new ArgumentOutOfRangeException(nameof(initialStyle));
         if (!float.IsFinite(cutDepth) || cutDepth < 0.08f || cutDepth > 0.3f)
             throw new ArgumentOutOfRangeException(nameof(cutDepth));
+        if (previewTexture == null) throw new ArgumentNullException(nameof(previewTexture));
         if (onConfirmed == null) throw new ArgumentNullException(nameof(onConfirmed));
 
         GameObject root = CreateUiObject("CutStyleSelection", parent);
@@ -38,7 +40,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         overlay.raycastTarget = true;
 
         PuzzleCutSelectionMenu menu = root.AddComponent<PuzzleCutSelectionMenu>();
-        menu.Initialize(initialStyle, cutDepth, onConfirmed);
+        menu.Initialize(initialStyle, cutDepth, previewTexture, onConfirmed);
         rootRect.SetAsLastSibling();
         return menu;
     }
@@ -52,6 +54,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     private void Initialize(
         PuzzleCutStyle initialStyle,
         float cutDepth,
+        Texture2D previewTexture,
         Func<PuzzleCutStyle, bool> onConfirmed)
     {
         selectedStyle = initialStyle;
@@ -105,7 +108,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         Toggle initialToggle = null;
         foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
         {
-            Toggle toggle = CreateOption(gridRect, group, style, cutDepth);
+            Toggle toggle = CreateOption(gridRect, group, style, cutDepth, previewTexture);
             if (style == initialStyle) initialToggle = toggle;
         }
 
@@ -139,7 +142,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform parent,
         ToggleGroup group,
         PuzzleCutStyle style,
-        float cutDepth)
+        float cutDepth,
+        Texture2D previewTexture)
     {
         GameObject cardObject = CreateUiObject(style.ToString(), parent);
         Image background = cardObject.AddComponent<Image>();
@@ -184,7 +188,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "Label",
             cardObject.transform,
             LabelFor(style),
-            15,
+            style == PuzzleCutStyle.FullyRandom ? 12 : 15,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
@@ -224,8 +228,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
                 style,
                 cutDepth,
                 3109 + (int)style * 97);
-            Color previewColor = Color.HSVToRGB(((int)style * 0.083f + 0.42f) % 1f, 0.5f, 1f);
-            preview.Configure(board[1, 1], previewColor);
+            preview.Configure(board[1, 1], previewTexture);
         }
 
         PuzzleCutStyle optionStyle = style;
