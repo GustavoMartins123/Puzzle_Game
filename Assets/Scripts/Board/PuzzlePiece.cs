@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System;
 
 [RequireComponent(typeof(ProceduralPuzzleImage))]
 public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -14,6 +15,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private bool placed;
     private bool rejected;
     private ProceduralPuzzleImage image;
+    private Action moveStarted;
 
     public int Id => id;
 
@@ -38,14 +40,17 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         Vector2 cellSize,
         float cutPadding,
         DragLayer dragLayer,
-        PieceTrayController tray)
+        PieceTrayController tray,
+        Action moveStarted)
     {
         if (dragLayer == null) throw new System.ArgumentNullException(nameof(dragLayer));
         if (tray == null) throw new System.ArgumentNullException(nameof(tray));
+        if (moveStarted == null) throw new ArgumentNullException(nameof(moveStarted));
 
         this.id = id;
         this.dragLayer = dragLayer;
         this.tray = tray;
+        this.moveStarted = moveStarted;
         image.Configure(sprite, geometry, true, Vector2.one);
         rectTransform.sizeDelta = Vector2.Scale(cellSize, Vector2.one * (1f + cutPadding * 2f));
     }
@@ -86,6 +91,8 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public void MarkRejected() => rejected = true;
 
+    public void PlayHint() => feedback.PlayHint();
+
     public void ReturnToTray()
     {
         rejected = false;
@@ -110,6 +117,8 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         try
         {
             dragLayer.Take(this, eventData.position);
+            feedback.PlaySelected();
+            moveStarted.Invoke();
         }
         catch
         {

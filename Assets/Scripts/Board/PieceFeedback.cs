@@ -16,6 +16,15 @@ public class PieceFeedback : MonoBehaviour
     [SerializeField] private float dropScale = 1.14f;
     [SerializeField] private float dropDuration = 0.28f;
 
+    [Header("Hint")]
+    [SerializeField] private Color hintColor = new Color(0.3f, 1f, 0.82f, 1f);
+    [SerializeField] private float hintDuration = 0.75f;
+    [SerializeField] private float hintScale = 1.18f;
+
+    [Header("Selection")]
+    [SerializeField] private float selectedScale = 1.08f;
+    [SerializeField] private float selectedDuration = 0.12f;
+
     private RectTransform rectTransform;
     private Image image;
     private Color baseColor;
@@ -49,6 +58,17 @@ public class PieceFeedback : MonoBehaviour
             .OnComplete(Settle);
     }
 
+    public void PlaySelected()
+    {
+        Stop();
+        restRotation = rectTransform.localRotation;
+        restScale = rectTransform.localScale;
+        rectTransform.DOScale(restScale * selectedScale, selectedDuration)
+            .SetEase(Ease.OutQuad)
+            .SetUpdate(true)
+            .SetLink(gameObject);
+    }
+
     public void PlayReturn(Vector3 worldOrigin)
     {
         Stop();
@@ -69,6 +89,23 @@ public class PieceFeedback : MonoBehaviour
             .DOAnchorPos(Vector2.zero, rejectedReturnDuration).SetEase(Ease.OutQuint));
         sequence.Insert(shakeDuration, rectTransform
             .DOLocalRotateQuaternion(restRotation, rejectedReturnDuration).SetEase(Ease.OutQuint));
+        sequence.OnComplete(Settle);
+    }
+
+    public void PlayHint()
+    {
+        Stop();
+        restRotation = rectTransform.localRotation;
+        restScale = rectTransform.localScale;
+
+        Sequence sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        sequence.Insert(0f, image.DOColor(hintColor, hintDuration * 0.5f)
+            .SetLoops(2, LoopType.Yoyo));
+        sequence.Insert(0f, rectTransform.DOPunchScale(
+            restScale * (hintScale - 1f),
+            hintDuration,
+            6,
+            0.6f));
         sequence.OnComplete(Settle);
     }
 

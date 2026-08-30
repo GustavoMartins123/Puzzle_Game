@@ -9,6 +9,13 @@ public enum PuzzleDifficulty
     Expert,
 }
 
+public enum PuzzleHintAllowance
+{
+    Disabled,
+    Unlimited,
+    Limited,
+}
+
 [Serializable]
 public struct PuzzleLayout
 {
@@ -28,6 +35,9 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     [SerializeField, Range(0.08f, 0.3f)] private float cutDepth = 0.22f;
     [SerializeField, Range(0f, 1f)] private float referenceOpacity = 0.65f;
     [SerializeField, Range(0f, 30f)] private float initialTilt = 8f;
+    [SerializeField] private PuzzleHintAllowance hintAllowance = PuzzleHintAllowance.Limited;
+    [SerializeField, Min(0)] private int maximumHints = 3;
+    [SerializeField, Min(0f)] private float hintCooldown = 10f;
 
     public PuzzleDifficulty Difficulty => difficulty;
 
@@ -46,6 +56,12 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     public float ReferenceOpacity => referenceOpacity;
 
     public float InitialTilt => initialTilt;
+
+    public PuzzleHintAllowance HintAllowance => hintAllowance;
+
+    public int MaximumHints => maximumHints;
+
+    public float HintCooldown => hintCooldown;
 
     public bool TryValidate(out string error)
     {
@@ -149,6 +165,36 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
             return false;
         }
 
+        if (!Enum.IsDefined(typeof(PuzzleHintAllowance), hintAllowance))
+        {
+            error = $"hint allowance value {(int)hintAllowance} is invalid";
+            return false;
+        }
+
+        if (hintAllowance == PuzzleHintAllowance.Limited && maximumHints <= 0)
+        {
+            error = "limited hints require a positive maximum";
+            return false;
+        }
+
+        if (hintAllowance != PuzzleHintAllowance.Limited && maximumHints != 0)
+        {
+            error = "maximum hints must be zero when hints are not limited";
+            return false;
+        }
+
+        if (!float.IsFinite(hintCooldown) || hintCooldown < 0f)
+        {
+            error = "hint cooldown must be finite and non-negative";
+            return false;
+        }
+
+        if (hintAllowance == PuzzleHintAllowance.Disabled && hintCooldown != 0f)
+        {
+            error = "disabled hints require a zero cooldown";
+            return false;
+        }
+
         error = string.Empty;
         return true;
     }
@@ -182,6 +228,21 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
             throw new InvalidOperationException($"Invalid difficulty profile '{name}': {error}.");
 
         return layouts[UnityEngine.Random.Range(0, layouts.Length)];
+    }
+
+    public bool CanUseHint(int hintsUsed)
+    {
+        if (hintsUsed < 0) throw new ArgumentOutOfRangeException(nameof(hintsUsed));
+        if (!TryValidate(out string error))
+            throw new InvalidOperationException($"Invalid difficulty profile '{name}': {error}.");
+
+        return hintAllowance switch
+        {
+            PuzzleHintAllowance.Disabled => false,
+            PuzzleHintAllowance.Unlimited => true,
+            PuzzleHintAllowance.Limited => hintsUsed < maximumHints,
+            _ => throw new InvalidOperationException($"Invalid hint allowance {hintAllowance}."),
+        };
     }
 
     public string BuildRuleSummary()

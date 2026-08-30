@@ -34,6 +34,7 @@ public static class ProceduralPuzzleValidator
 
         ValidateSelectionUi();
         ValidateSessionDefinitions();
+        ValidateSessionMetrics();
         ValidateTrayLayouts();
         ValidateProceduralPrefabs();
         ValidateGameScene();
@@ -41,7 +42,8 @@ public static class ProceduralPuzzleValidator
         Debug.Log(
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
             $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
-            "selection UI, responsive trays, prefabs, and scene are valid.");
+            "retry image rotation, session metrics, selection UI, responsive trays, prefabs, " +
+            "and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -92,11 +94,43 @@ public static class ProceduralPuzzleValidator
                     }
                 }
             }
+
+            Texture2D initialImage = config.PickImage();
+            Texture2D retryImage = config.PickDifferentImage(initialImage);
+            if (retryImage == initialImage)
+                throw new InvalidOperationException(
+                    "Retry image selection returned the current image.");
         }
         finally
         {
             UnityEngine.Object.DestroyImmediate(texture);
         }
+    }
+
+    private static void ValidateSessionMetrics()
+    {
+        var metrics = new PuzzleSessionMetrics();
+        metrics.Begin(2);
+        metrics.Tick(1.5f);
+        metrics.RecordMoveStarted();
+        metrics.RecordIncorrectAttempt();
+        metrics.RecordHint();
+        metrics.RecordCorrectPlacement();
+
+        if (!metrics.IsActive || metrics.IsComplete ||
+            !Mathf.Approximately(metrics.ElapsedSeconds, 1.5f) ||
+            metrics.MovesStarted != 1 || metrics.IncorrectAttempts != 1 ||
+            metrics.HintsUsed != 1 || metrics.CorrectPlacements != 1 ||
+            metrics.PlacedPieces != 1 || metrics.TotalPieces != 2)
+            throw new InvalidOperationException("Session metrics recorded an invalid state.");
+
+        metrics.RecordCorrectPlacement();
+        if (!metrics.IsComplete)
+            throw new InvalidOperationException("Session metrics did not mark completion.");
+
+        metrics.Tick(5f);
+        if (!Mathf.Approximately(metrics.ElapsedSeconds, 1.5f))
+            throw new InvalidOperationException("Completed session time continued advancing.");
     }
 
     private static void ValidateTrayLayouts()
@@ -452,9 +486,9 @@ public static class ProceduralPuzzleValidator
             throw new InvalidOperationException("Game scene is missing the canonical piece tray.");
         var serializedBuilder = new SerializedObject(builder);
         SerializedProperty trayProperty = serializedBuilder.FindProperty("tray");
-        if (trayProperty == null || trayProperty.objectReferenceValue != tray)
+        if (trayProperty == null || trayProperty.objectReferenceValue != tray.transform)
             throw new InvalidOperationException(
-                "BoardBuilder must reference the scene PieceTrayController.");
+                "BoardBuilder must reference the RectTransform that owns PieceTrayController.");
 
         var serializedController = new SerializedObject(controller);
         SerializedProperty selectionRoot = serializedController.FindProperty("selectionRoot");

@@ -371,7 +371,7 @@ MonoBehaviour:
     type: 3}
   slotPrefab: {fileID: 2285380695085341575, guid: ab9a5f249cee07046a2a2c83354b737d,
     type: 3}
-  tray: {fileID: 220000002}
+  tray: {fileID: 220000001}
   grid: {fileID: 230000003}
   reference: {fileID: 210000003}
 --- !u!114 &100000004

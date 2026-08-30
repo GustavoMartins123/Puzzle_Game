@@ -23,20 +23,35 @@ public class SlotFeedback : MonoBehaviour
     [SerializeField] private float rejectDuration = 0.35f;
     [SerializeField] private float rejectTilt = 9f;
 
+    [Header("Hint")]
+    [SerializeField] private Color hintColor = new Color(0.3f, 1f, 0.82f, 1f);
+    [SerializeField] private float hintDuration = 0.75f;
+    [SerializeField] private float hintPunch = 0.2f;
+
     [Header("Completion Wave")]
     [SerializeField] private float waveDuration = 0.55f;
     [SerializeField] private float wavePunch = 0.3f;
 
     private RectTransform rectTransform;
+    private Image slotImage;
+    private Color slotColor;
     private PuzzlePiece placed;
     private Color placedColor;
 
     public float WaveDuration => waveDuration;
 
-    private void Awake() => rectTransform = (RectTransform)transform;
+    private void Awake()
+    {
+        rectTransform = (RectTransform)transform;
+        slotImage = GetComponent<Image>();
+        if (slotImage == null)
+            throw new System.InvalidOperationException("SlotFeedback requires an Image.");
+        slotColor = slotImage.color;
+    }
 
     public void PlayFilled(PuzzlePiece piece, Vector3 worldOrigin)
     {
+        ResetSlotVisual();
         placed = piece;
         placedColor = piece.Image.color;
 
@@ -65,10 +80,12 @@ public class SlotFeedback : MonoBehaviour
 
     public void PlayRejected(Image slotImage)
     {
+        if (slotImage != this.slotImage)
+            throw new System.InvalidOperationException("SlotFeedback received a different slot image.");
+
+        ResetSlotVisual();
         DOTween.Kill(rectTransform);
         DOTween.Kill(slotImage);
-
-        Color slotColor = slotImage.color;
 
         Sequence sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
         sequence.Insert(0f, slotImage.DOColor(rejectColor, rejectDuration * 0.3f)
@@ -96,6 +113,38 @@ public class SlotFeedback : MonoBehaviour
         sequence.Insert(delay, placed.Image.DOColor(flashColor, waveDuration * 0.25f)
             .SetLoops(2, LoopType.Yoyo));
         sequence.OnComplete(Settle);
+    }
+
+    public void PlayHint(Image slotImage)
+    {
+        if (slotImage == null) throw new System.ArgumentNullException(nameof(slotImage));
+        if (slotImage != this.slotImage)
+            throw new System.InvalidOperationException("SlotFeedback received a different slot image.");
+
+        ResetSlotVisual();
+
+        Sequence sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        sequence.Insert(0f, slotImage.DOColor(hintColor, hintDuration * 0.5f)
+            .SetLoops(2, LoopType.Yoyo));
+        sequence.Insert(0f, rectTransform.DOPunchScale(
+            Vector3.one * hintPunch,
+            hintDuration,
+            6,
+            0.6f));
+        sequence.OnComplete(() =>
+        {
+            slotImage.color = slotColor;
+            rectTransform.localScale = Vector3.one;
+        });
+    }
+
+    private void ResetSlotVisual()
+    {
+        DOTween.Kill(rectTransform);
+        DOTween.Kill(slotImage);
+        slotImage.color = slotColor;
+        rectTransform.localScale = Vector3.one;
+        rectTransform.localRotation = Quaternion.identity;
     }
 
     private void Settle()

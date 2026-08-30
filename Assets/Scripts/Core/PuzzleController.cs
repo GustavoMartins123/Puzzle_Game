@@ -14,8 +14,9 @@ public class PuzzleController : MonoBehaviour
     private PuzzleCutSelectionMenu selectionMenu;
     private Texture2D puzzleTexture;
     private PuzzleSessionDefinition currentSession;
-    private int totalPieces;
-    private int placedPieces;
+    private readonly PuzzleSessionMetrics metrics = new PuzzleSessionMetrics();
+    private readonly PuzzleHintController hints = new PuzzleHintController();
+    private PuzzleHud hud;
     private bool started;
     private bool transitioning;
 
@@ -62,7 +63,13 @@ public class PuzzleController : MonoBehaviour
 
     private void Update()
     {
-        if (started && dragLayer.IsDragging) dragLayer.Follow(input.PointerPosition);
+        if (!started) return;
+        if (dragLayer.IsDragging) dragLayer.Follow(input.PointerPosition);
+        if (transitioning || menu.IsOpen) return;
+
+        metrics.Tick(Time.unscaledDeltaTime);
+        hints.Tick(Time.unscaledDeltaTime);
+        hud.Refresh(metrics, currentSession.Difficulty, hints);
     }
 
     private void OnDestroy()
@@ -70,9 +77,12 @@ public class PuzzleController : MonoBehaviour
         menu.Opened -= CancelDrag;
         menu.RetryRequested -= RetryCurrentSession;
         menu.OptionsRequested -= ReturnToOptions;
-        if (input == null) return;
-        input.PauseToggled -= TogglePause;
-        input.Dispose();
+        if (input != null)
+        {
+            input.PauseToggled -= TogglePause;
+            input.Dispose();
+        }
+        if (hud != null) hud.Close();
     }
 
     private void ShowOptions(
@@ -121,13 +131,41 @@ public class PuzzleController : MonoBehaviour
 
     private bool BuildSession(PuzzleSessionDefinition session)
     {
-        int builtPieces = builder.Build(session, dragLayer, OnSlotFilled);
-        if (builtPieces <= 0) return false;
+        int builtPieces = builder.Build(
+            session,
+            dragLayer,
+            OnSlotFilled,
+            OnMoveStarted,
+            OnIncorrectAttempt);
+        if (builtPieces <= 0)
+        {
+            CloseSessionUi();
+            return false;
+        }
 
-        totalPieces = builtPieces;
-        placedPieces = 0;
-        started = true;
-        return true;
+        try
+        {
+            metrics.Begin(builtPieces);
+            hints.Configure(
+                session.Difficulty,
+                builder.Pieces,
+                builder.Slots,
+                builder.TrayController,
+                metrics);
+            if (hud == null) hud = PuzzleHud.Show(selectionRoot, UseHint);
+            hud.Refresh(metrics, session.Difficulty, hints);
+            started = true;
+            return true;
+        }
+        catch (System.Exception exception)
+        {
+            builder.ClearBoard();
+            CloseSessionUi();
+            Debug.LogError(
+                $"PuzzleController: session interface could not be created: {exception.Message}",
+                this);
+            return false;
+        }
     }
 
     private void TogglePause()
@@ -139,7 +177,7 @@ public class PuzzleController : MonoBehaviour
     {
         if (!started || currentSession == null)
             throw new System.InvalidOperationException("There is no active puzzle session to retry.");
-        BeginTransition(RestartCurrentSession());
+        BeginTransition(RestartWithDifferentImage());
     }
 
     private void ReturnToOptions()
@@ -158,22 +196,45 @@ public class PuzzleController : MonoBehaviour
         transitioning = true;
         CancelDrag();
         started = false;
-        totalPieces = 0;
-        placedPieces = 0;
+        hints.Reset();
+        metrics.Reset();
         builder.ClearBoard();
         StartCoroutine(routine);
     }
 
-    private IEnumerator RestartCurrentSession()
+    private IEnumerator RestartWithDifferentImage()
     {
         yield return null;
 
-        if (!BuildSession(currentSession))
+        Texture2D nextTexture;
+        PuzzleSessionDefinition nextSession;
+        try
+        {
+            nextTexture = config.PickDifferentImage(currentSession.Texture);
+            nextSession = new PuzzleSessionDefinition(
+                currentSession.Difficulty,
+                currentSession.Layout,
+                currentSession.CutStyle,
+                nextTexture,
+                config.CreateCutSeed(),
+                config.CreateTraySeed());
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"PuzzleController: retry could not create a new session: {exception.Message}", this);
+            CloseSessionUi();
+            transitioning = false;
+            yield break;
+        }
+
+        if (!BuildSession(nextSession))
         {
             transitioning = false;
             yield break;
         }
 
+        currentSession = nextSession;
+        puzzleTexture = nextTexture;
         transitioning = false;
     }
 
@@ -183,14 +244,40 @@ public class PuzzleController : MonoBehaviour
 
         PuzzleDifficultyProfile difficulty = currentSession.Difficulty;
         PuzzleCutStyle cutStyle = currentSession.CutStyle;
+        if (hud != null)
+        {
+            hud.Close();
+            hud = null;
+        }
         transitioning = false;
         ShowOptions(difficulty, cutStyle);
     }
 
     private void OnSlotFilled(Slot slot)
     {
-        placedPieces++;
-        if (placedPieces >= totalPieces) StartCoroutine(CelebrateThenFinish());
+        if (slot == null) throw new System.ArgumentNullException(nameof(slot));
+        metrics.RecordCorrectPlacement();
+        hud.Refresh(metrics, currentSession.Difficulty, hints);
+        if (metrics.IsComplete) StartCoroutine(CelebrateThenFinish());
+    }
+
+    private void OnMoveStarted() => metrics.RecordMoveStarted();
+
+    private void OnIncorrectAttempt() => metrics.RecordIncorrectAttempt();
+
+    private void UseHint()
+    {
+        if (!started || transitioning || menu.IsOpen)
+            throw new System.InvalidOperationException("Hints require an active unpaused session.");
+        if (dragLayer.IsDragging)
+        {
+            hud.ShowStatus("Solte a peça antes de pedir uma dica.");
+            return;
+        }
+
+        hints.TryUseHint(out string message);
+        hud.ShowStatus(message);
+        hud.Refresh(metrics, currentSession.Difficulty, hints);
     }
 
     private IEnumerator CelebrateThenFinish()
@@ -204,5 +291,15 @@ public class PuzzleController : MonoBehaviour
     {
         if (!dragLayer.IsDragging) return;
         dragLayer.Release().ReturnToTray();
+    }
+
+    private void CloseSessionUi()
+    {
+        started = false;
+        hints.Reset();
+        metrics.Reset();
+        if (hud == null) return;
+        hud.Close();
+        hud = null;
     }
 }

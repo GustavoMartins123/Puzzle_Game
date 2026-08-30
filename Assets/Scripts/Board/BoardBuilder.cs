@@ -9,7 +9,7 @@ public class BoardBuilder : MonoBehaviour
 
     [SerializeField] private PuzzlePiece piecePrefab;
     [SerializeField] private Slot slotPrefab;
-    [SerializeField] private PieceTrayController tray;
+    [SerializeField] private RectTransform tray;
     [SerializeField] private GridLayoutGroup grid;
     [SerializeField] private Image reference;
 
@@ -19,12 +19,23 @@ public class BoardBuilder : MonoBehaviour
     private readonly List<Sprite> generated = new List<Sprite>();
     private readonly List<PuzzlePiece> pieces = new List<PuzzlePiece>();
     private readonly List<Slot> slots = new List<Slot>();
+    private PieceTrayController trayController;
     private int divisionsUsed;
+
+    public IReadOnlyList<PuzzlePiece> Pieces => pieces;
+
+    public IReadOnlyList<Slot> Slots => slots;
+
+    public PieceTrayController TrayController => trayController != null
+        ? trayController
+        : throw new InvalidOperationException("Piece tray controller is not resolved.");
 
     public int Build(
         PuzzleSessionDefinition session,
         DragLayer dragLayer,
-        Action<Slot> onSlotFilled)
+        Action<Slot> onSlotFilled,
+        Action onMoveStarted,
+        Action onIncorrectAttempt)
     {
         if (dragLayer == null)
         {
@@ -96,17 +107,31 @@ public class BoardBuilder : MonoBehaviour
                     int id = y * divisions + x;
                     ProceduralPuzzleGeometry geometry = geometries[x, divisions - 1 - y];
 
-                    PuzzlePiece piece = Instantiate(piecePrefab, tray.Root, false);
+                    PuzzlePiece piece = Instantiate(piecePrefab, tray, false);
                     pieces.Add(piece);
-                    piece.Setup(id, sourceSprite, geometry, cellSize, cutPadding, dragLayer, tray);
+                    piece.Setup(
+                        id,
+                        sourceSprite,
+                        geometry,
+                        cellSize,
+                        cutPadding,
+                        dragLayer,
+                        trayController,
+                        onMoveStarted);
 
                     Slot slot = Instantiate(slotPrefab, grid.transform, false);
                     slots.Add(slot);
-                    slot.Setup(id, geometry, cutPadding, dragLayer, onSlotFilled);
+                    slot.Setup(
+                        id,
+                        geometry,
+                        cutPadding,
+                        dragLayer,
+                        onSlotFilled,
+                        onIncorrectAttempt);
                 }
             }
 
-            if (!tray.TryConfigure(
+            if (!trayController.TryConfigure(
                     pieces,
                     pieceVisualSize,
                     difficulty.InitialTilt,
@@ -135,7 +160,7 @@ public class BoardBuilder : MonoBehaviour
             if (slots[i] != null) Destroy(slots[i].gameObject);
         pieces.Clear();
         slots.Clear();
-        if (tray != null) tray.Clear();
+        if (trayController != null) trayController.Clear();
         ReleaseGeneratedSprites();
         divisionsUsed = 0;
 
@@ -192,7 +217,9 @@ public class BoardBuilder : MonoBehaviour
     {
         if (piecePrefab == null) error = "piece prefab is missing";
         else if (slotPrefab == null) error = "slot prefab is missing";
-        else if (tray == null) error = "piece tray controller is missing";
+        else if (tray == null) error = "piece tray root is missing";
+        else if ((trayController = tray.GetComponent<PieceTrayController>()) == null)
+            error = "piece tray root is missing PieceTrayController";
         else if (grid == null) error = "slot grid is missing";
         else if (reference == null) error = "reference image is missing";
         else

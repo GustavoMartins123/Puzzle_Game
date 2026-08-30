@@ -84,17 +84,26 @@ public class PuzzleConfig : ScriptableObject
             return false;
         }
 
-        if (imagePaths == null || imagePaths.Length == 0)
+        if (imagePaths == null || imagePaths.Length < 2)
         {
-            error = "the image library is empty";
+            error = "the image library must contain at least two images";
             return false;
         }
 
+        var uniqueImagePaths = new HashSet<string>(StringComparer.Ordinal);
         for (int i = 0; i < imagePaths.Length; i++)
         {
-            if (!string.IsNullOrWhiteSpace(imagePaths[i])) continue;
-            error = $"image path {i} is empty";
-            return false;
+            if (string.IsNullOrWhiteSpace(imagePaths[i]))
+            {
+                error = $"image path {i} is empty";
+                return false;
+            }
+
+            if (!uniqueImagePaths.Add(imagePaths[i]))
+            {
+                error = $"image path '{imagePaths[i]}' is duplicated";
+                return false;
+            }
         }
 
         error = string.Empty;
@@ -127,5 +136,38 @@ public class PuzzleConfig : ScriptableObject
             throw new InvalidOperationException($"Puzzle image '{path}' could not be loaded.");
 
         return texture;
+    }
+
+    public Texture2D PickDifferentImage(Texture2D currentTexture)
+    {
+        if (!TryValidate(out string error))
+            throw new InvalidOperationException($"Invalid PuzzleConfig: {error}.");
+        if (currentTexture == null)
+            throw new ArgumentNullException(nameof(currentTexture));
+
+        int currentIndex = -1;
+        for (int i = 0; i < imagePaths.Length; i++)
+        {
+            Texture2D candidate = Resources.Load<Texture2D>(imagePaths[i]);
+            if (candidate == null)
+                throw new InvalidOperationException(
+                    $"Puzzle image '{imagePaths[i]}' could not be loaded.");
+            if (candidate == currentTexture) currentIndex = i;
+        }
+
+        if (currentIndex < 0)
+            throw new InvalidOperationException(
+                $"Current puzzle image '{currentTexture.name}' is not part of the configured library.");
+
+        int offset = UnityEngine.Random.Range(1, imagePaths.Length);
+        int selectedIndex = (currentIndex + offset) % imagePaths.Length;
+        Texture2D selectedTexture = Resources.Load<Texture2D>(imagePaths[selectedIndex]);
+        if (selectedTexture == null)
+            throw new InvalidOperationException(
+                $"Puzzle image '{imagePaths[selectedIndex]}' could not be loaded.");
+        if (selectedTexture == currentTexture)
+            throw new InvalidOperationException("Retry selected the current puzzle image again.");
+
+        return selectedTexture;
     }
 }

@@ -37,3 +37,6 @@ MonoBehaviour:
   cutDepth: 0.22
   referenceOpacity: 0.65
   initialTilt: 8
+  hintAllowance: 2
+  maximumHints: 3
+  hintCooldown: 10

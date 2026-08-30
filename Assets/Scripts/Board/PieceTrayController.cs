@@ -405,6 +405,18 @@ public sealed class PieceTrayController : MonoBehaviour
         RefreshNavigation();
     }
 
+    public void RevealPiece(PuzzlePiece piece)
+    {
+        if (!configured) throw new InvalidOperationException("Piece tray is not configured.");
+        if (piece == null) throw new ArgumentNullException(nameof(piece));
+        if (activeDrag != null)
+            throw new InvalidOperationException("Cannot reveal a hint while dragging a piece.");
+        if (!cellsByPiece.TryGetValue(piece, out TrayCell cell))
+            throw new InvalidOperationException($"Piece {piece.name} is not pending in the tray.");
+
+        if (cell.PageIndex != currentPage) ApplyPage(cell.PageIndex);
+    }
+
     public void Clear()
     {
         activeDrag = null;

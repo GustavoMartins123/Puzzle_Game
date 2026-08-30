@@ -59,6 +59,7 @@ public class GameMenu : MonoBehaviour
     {
         title.text = label;
         panel.SetActive(true);
+        panel.transform.SetAsLastSibling();
         Time.timeScale = 0f;
         Opened?.Invoke();
     }

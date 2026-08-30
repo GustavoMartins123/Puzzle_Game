@@ -11,6 +11,7 @@ public class Slot : MonoBehaviour, IDropHandler
     private RectTransform rectTransform;
     private DragLayer dragLayer;
     private Action<Slot> filled;
+    private Action incorrectAttempt;
     private int id;
     private ProceduralPuzzleImage image;
 
@@ -33,14 +34,18 @@ public class Slot : MonoBehaviour, IDropHandler
         ProceduralPuzzleGeometry geometry,
         float cutPadding,
         DragLayer dragLayer,
-        Action<Slot> filled)
+        Action<Slot> filled,
+        Action incorrectAttempt)
     {
         if (image.sprite == null) throw new InvalidOperationException("Slot requires a source sprite.");
         if (dragLayer == null) throw new ArgumentNullException(nameof(dragLayer));
+        if (filled == null) throw new ArgumentNullException(nameof(filled));
+        if (incorrectAttempt == null) throw new ArgumentNullException(nameof(incorrectAttempt));
 
         this.id = id;
         this.dragLayer = dragLayer;
         this.filled = filled;
+        this.incorrectAttempt = incorrectAttempt;
         image.Configure(
             image.sprite,
             geometry,
@@ -57,6 +62,7 @@ public class Slot : MonoBehaviour, IDropHandler
         {
             piece.MarkRejected();
             feedback.PlayRejected(image);
+            incorrectAttempt.Invoke();
             return;
         }
 
@@ -66,6 +72,8 @@ public class Slot : MonoBehaviour, IDropHandler
         piece.PlaceInto(this);
         image.raycastTarget = false;
         feedback.PlayFilled(piece, origin);
-        filled?.Invoke(this);
+        filled.Invoke(this);
     }
+
+    public void PlayHint() => feedback.PlayHint(image);
 }
