@@ -1,101 +1,82 @@
-using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class PieceClass : MonoBehaviour, IDragHandler, IDropHandler, IBeginDragHandler
+public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    [SerializeField] private Image sprite = null;
-    [SerializeField] private int myId = 0;
-    [SerializeField] private InputManager inputManager;
-    [SerializeField] private UiDragPiece dragPiece;
-    private bool pieceInSlot = false;
-    private void Start()
+    [SerializeField] private Image image;
+
+    private RectTransform rectTransform;
+    private DragLayer dragLayer;
+    private RectTransform tray;
+    private Vector2 trayAnchor;
+    private Quaternion trayRotation;
+    private int id;
+    private bool placed;
+
+    public int Id => id;
+
+    public bool Placed => placed;
+
+    private void Awake() => rectTransform = (RectTransform)transform;
+
+    public void Setup(int id, Sprite sprite, float cellSize, DragLayer dragLayer, RectTransform tray)
     {
-        inputManager.OnPauseCalled += InputManager_OnPauseCalled;
-    }
-    public void SetSprite(Sprite sprite)
-    {
-        this.sprite.sprite = sprite;
+        this.id = id;
+        this.dragLayer = dragLayer;
+        this.tray = tray;
+        image.sprite = sprite;
+        rectTransform.sizeDelta = new Vector2(cellSize, cellSize);
     }
 
-    public void SetId(int id)
+    public void ScatterTo(Vector2 anchor, float tiltDegrees)
     {
-        myId = id;
+        trayAnchor = anchor;
+        trayRotation = Quaternion.Euler(0f, 0f, tiltDegrees);
+        ReturnToTray();
+    }
+
+    public void AttachTo(RectTransform parent)
+    {
+        rectTransform.SetParent(parent, false);
+        rectTransform.anchorMin = Vector2.one * 0.5f;
+        rectTransform.anchorMax = Vector2.one * 0.5f;
+        rectTransform.anchoredPosition = Vector2.zero;
+        rectTransform.localRotation = Quaternion.identity;
+    }
+
+    public void ReturnToTray()
+    {
+        image.raycastTarget = true;
+        rectTransform.SetParent(tray, false);
+        rectTransform.anchorMin = trayAnchor;
+        rectTransform.anchorMax = trayAnchor;
+        rectTransform.anchoredPosition = Vector2.zero;
+        rectTransform.localRotation = trayRotation;
+    }
+
+    public void PlaceInto(Slot slot)
+    {
+        placed = true;
+        image.raycastTarget = false;
+        AttachTo(slot.RectTransform);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (dragPiece.GetMouseImg().transform.childCount > 0)
-        {
-            dragPiece.GetMouseImg().transform.GetChild(0).SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
-        }
+        if (placed || dragLayer.IsDragging) return;
+        image.raycastTarget = false;
+        dragLayer.Take(this, eventData.position);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if(Time.timeScale != 1)
-        {
-            return;
-        }
-        PieceClass piece = eventData.pointerDrag.transform.GetComponent<PieceClass>();
-        dragPiece.SetPieceClass(piece);
-        if (piece != null && !piece.pieceInSlot)
-        {
-            
-            dragPiece.SetPiecePreviousId(myId);
-            piece.transform.SetParent(dragPiece.GetMouseImg().transform);
-            piece.transform.localPosition = Vector2.Lerp(piece.transform.localPosition, Vector2.zero, 0.1f);
-            GameManager.Instance.InvokeInputManager(this, true);
-        }
     }
 
-    public void OnDrop(PointerEventData eventData)
+    public void OnEndDrag(PointerEventData eventData)
     {
-        PieceClass piece = eventData.pointerDrag.transform.GetComponent<PieceClass>();
-        if (piece != null)
-        {
-            Slot slot = GameManager.Instance.GetClosestSlotToPiece(piece);
-            if (slot != null && slot.GetId() == dragPiece.GetPiecePreviousId())
-            {
-                piece.transform.SetParent(slot.transform);
-                piece.pieceInSlot = true;
-                GameManager.Instance.InvokeInputManager(this, false);
-                piece.transform.localRotation = Quaternion.identity;
-                piece.transform.localPosition = Vector2.zero;
-                dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
-                dragPiece.GetMouseImg().transform.SetAsLastSibling();
-                dragPiece.SetPieceClass(null);
-            }
-            else
-            {
-                piece.transform.SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
-                GameManager.Instance.InvokeInputManager(this, false);
-                dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
-                dragPiece.GetMouseImg().transform.SetAsLastSibling();
-                dragPiece.SetPieceClass(null);
-            }
-        }
-    }
-
-    private void InputManager_OnPauseCalled(object sender, EventArgs e)
-    {
-        if (dragPiece.GetPieceClass() != null)
-        {
-            dragPiece.GetPieceClass().transform.SetParent(GameManager.Instance.GetFatherOfPiecesTransform());
-            GameManager.Instance.InvokeInputManager(this, false);
-            dragPiece.GetMouseImg().transform.localPosition = Vector3.zero;
-            dragPiece.GetMouseImg().transform.SetAsLastSibling();
-        }
-    }
-
-    public UiDragPiece GetPiece()
-    {
-        return dragPiece;
-    }
-
-    public bool GetPieceInSlot()
-    {
-        return pieceInSlot;
+        if (dragLayer.Held != this) return;
+        dragLayer.Release();
+        ReturnToTray();
     }
 }

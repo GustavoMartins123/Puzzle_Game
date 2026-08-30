@@ -1,31 +1,41 @@
 using UnityEngine;
-using UnityEngine.UI;
 
-public class UiDragPiece : MonoBehaviour
+public class DragLayer : MonoBehaviour
 {
-    [SerializeField] private Image mouseImg;
-    [SerializeField] private int piecePreviousId;
-    [SerializeField] private PieceClass pieceClass;
+    [SerializeField] private float followSpeed = 30f;
 
-    public Image GetMouseImg()
+    private RectTransform rectTransform;
+    private PuzzlePiece held;
+
+    public PuzzlePiece Held => held;
+
+    public bool IsDragging => held != null;
+
+    private void Awake()
     {
-        return mouseImg;
-    }
-    public void SetPiecePreviousId(int piecePreviousId)
-    {
-        this.piecePreviousId = piecePreviousId;
+        rectTransform = (RectTransform)transform;
+        gameObject.SetActive(false);
     }
 
-    public int GetPiecePreviousId()
+    public void Take(PuzzlePiece piece, Vector2 pointerPosition)
     {
-        return piecePreviousId;
+        held = piece;
+        gameObject.SetActive(true);
+        rectTransform.position = pointerPosition;
+        piece.AttachTo(rectTransform);
     }
-    public void SetPieceClass(PieceClass pieceClass)
+
+    public PuzzlePiece Release()
     {
-        this.pieceClass = pieceClass;
+        PuzzlePiece piece = held;
+        held = null;
+        gameObject.SetActive(false);
+        return piece;
     }
-    public PieceClass GetPieceClass()
+
+    public void Follow(Vector2 pointerPosition)
     {
-        return pieceClass;
+        float t = 1f - Mathf.Exp(-followSpeed * Time.unscaledDeltaTime);
+        rectTransform.position = Vector2.Lerp(rectTransform.position, pointerPosition, t);
     }
 }

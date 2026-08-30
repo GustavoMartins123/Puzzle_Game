@@ -1,59 +1,62 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
-public class InputManager: MonoBehaviour
+public class GameMenu : MonoBehaviour
 {
-    public EventHandler<bool> OnPieceChanged;
-    public EventHandler OnPauseCalled;
-    private PlayerInputActions inputActions;
-    [SerializeField] private UiDragPiece dragPiece;
+    [SerializeField] private GameObject panel;
+    [SerializeField] private Text title;
+    [SerializeField] private string pauseLabel = "PAUSED";
+    [SerializeField] private string winLabel = "YOU WIN!";
 
-    [SerializeField] private GameObject panelWin;
-    private bool pause = false;
-    private void Awake()
+    private bool finished;
+
+    public event Action Opened;
+
+    public bool IsOpen => panel.activeSelf;
+
+    private void Awake() => panel.SetActive(false);
+
+    public void TogglePause()
     {
-        inputActions = new PlayerInputActions();
-        inputActions.Enable();
-        inputActions.Move.MousePos.performed += ctx => GetMousePosition();
-        inputActions.Move.Pause.performed += ctx => Pause();
+        if (finished) return;
+        if (IsOpen) Close();
+        else Open(pauseLabel);
     }
 
-    private void GetMousePosition()
+    public void ShowWin()
     {
-        if(dragPiece == null)
-        {
-            return;
-        }
-        Vector2 mousePosition = inputActions.Move.MousePos.ReadValue<Vector2>();
-
-        float screenWidth = Screen.currentResolution.width;
-        float screenHeight = Screen.currentResolution.height;
-        Vector2 currentPosition = dragPiece.GetMouseImg().rectTransform.position;
-
-        Vector2 clampedPosition = new Vector2(Mathf.Clamp(currentPosition.x, -screenWidth, screenWidth),
-            Mathf.Clamp(currentPosition.y, -screenHeight, screenHeight));
-
-        Vector2 smoothedPosition = Vector2.Lerp(clampedPosition, mousePosition, 0.5f);
-        dragPiece.GetMouseImg().rectTransform.position = smoothedPosition;
-    }
-
-    private void Pause()
-    {
-        pause = !pause;
-        panelWin.SetActive(pause);
-        Time.timeScale = pause ? 0f : 1f;
-        OnPauseCalled?.Invoke(this, EventArgs.Empty);
+        finished = true;
+        Open(winLabel);
     }
 
     public void Retry()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void Quit()
     {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
         Application.Quit();
+#endif
+    }
+
+    private void Open(string label)
+    {
+        title.text = label;
+        panel.SetActive(true);
+        Time.timeScale = 0f;
+        Opened?.Invoke();
+    }
+
+    private void Close()
+    {
+        panel.SetActive(false);
+        Time.timeScale = 1f;
     }
 }

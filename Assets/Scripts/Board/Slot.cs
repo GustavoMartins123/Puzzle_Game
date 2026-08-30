@@ -1,24 +1,39 @@
+using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Image))]
-public class Slot : MonoBehaviour
+public class Slot : MonoBehaviour, IDropHandler
 {
     [SerializeField] private Image image;
+
+    private RectTransform rectTransform;
+    private DragLayer dragLayer;
+    private Action<Slot> filled;
     private int id;
 
-    public void SetId(int id)
+    public int Id => id;
+
+    public RectTransform RectTransform => rectTransform;
+
+    private void Awake() => rectTransform = (RectTransform)transform;
+
+    public void Setup(int id, DragLayer dragLayer, Action<Slot> filled)
     {
         this.id = id;
+        this.dragLayer = dragLayer;
+        this.filled = filled;
     }
 
-    public int GetId()
+    public void OnDrop(PointerEventData eventData)
     {
-        return id;
-    }
+        PuzzlePiece piece = dragLayer.Held;
+        if (piece == null || piece.Id != id) return;
 
-    public Image GetImage()
-    {
-        return image;
+        dragLayer.Release();
+        piece.PlaceInto(this);
+        image.raycastTarget = false;
+        filled?.Invoke(this);
     }
 }

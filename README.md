@@ -1,15 +1,19 @@
-How to setup:  
+# Puzzle Game
 
-1 - CLone the code and add project in unity hub.  
+Unity 6000.5.10f1
 
-2 - Open, go to folder "Resources" and add a folder "Sprites/Fish", or just update the patch in "Piece.cs" line 49, the code "string folderPath = "Sprites/Fish";", 
-    add all images here.  
+## Setup
 
-3 - Set all images to "Sprite (2D and UI).  
+1. Clone o repositório e adicione o projeto no Unity Hub.
+2. Abra `Assets/Scenes/Game.unity`.
+3. Play.
 
-4 - Set to true in all images, this option "Read/Write", if not activated, the code won't work.  
+## Imagens
 
-5 - Click on play and test.  
+Jogue as imagens em `Assets/Resources/PuzzleImages/`. Use proporção 1:1.
 
-6 - If the divisions between the images are not appearing when you start, go to the following object "Canvas" and then to its child "Panel_3x3", 
-    see if in the grid layout group in spacing the value is non-zero, if it is zero, test 1 or 2.    
+Não precisa configurar nada nelas. O import e a lista do `PuzzleConfig` são ajustados
+sozinhos ao adicionar, remover ou renomear um arquivo.
+
+Se você colocou imagens na pasta antes de abrir o projeto pela primeira vez, abra
+`Assets/Settings/PuzzleConfig.asset` e clique em **Rescan Folder**.

@@ -1,120 +1,87 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class Piece: MonoBehaviour
+public class BoardBuilder : MonoBehaviour
 {
-    [SerializeField] private PieceClass pieceObjectReference;
-    [SerializeField] private GameObject fatherOfPieces;
-    [SerializeField] private Image BackGround;
-    [SerializeField] GridLayoutGroup gridLayoutGroup;
-    private List<Image> sprites = new List<Image>();
-    private Texture2D sourceTexture;
+    private const string ImagesFolder = "Assets/Resources/PuzzleImages";
 
-    [SerializeField]
-    int[] numImages =
-    {
-        4,9,16,25
-    };
+    private static readonly Vector2 Center = new Vector2(0.5f, 0.5f);
 
-    [SerializeField]
-    int[] numColumsRows =
-    {
-        2,3,4,5
-    };
+    [SerializeField] private PuzzlePiece piecePrefab;
+    [SerializeField] private Slot slotPrefab;
+    [SerializeField] private RectTransform tray;
+    [SerializeField] private GridLayoutGroup grid;
+    [SerializeField] private Image reference;
 
-    [SerializeField]
-    int[] numCellSize =
-    {
-        300,200,150,120
-    };
+    [Header("Scatter")]
+    [SerializeField] private Vector2 bandX = new Vector2(0.05f, 0.28f);
+    [SerializeField] private Vector2 bandY = new Vector2(0.12f, 0.88f);
+    [SerializeField] private float tilt = 12f;
 
-    private void Awake()
-    {
-        InstantiateSprites(numImages[Random.Range(0, numImages.Length)]);
-        LoadAndSliceTexture();
-    }
+    private readonly List<Sprite> generated = new List<Sprite>();
 
-    private void InstantiateSprites(int num)
+    public int Build(PuzzleConfig config, DragLayer dragLayer, Action<Slot> onSlotFilled)
     {
-        for (int i = 0; i < num; i++)
+        if (config == null || !config.HasContent)
         {
-            GameObject gameObject = Instantiate(pieceObjectReference.gameObject, fatherOfPieces.transform);
-            sprites.Add(gameObject.GetComponent<Image>());
+            Debug.LogError($"BoardBuilder: assign a PuzzleConfig and put square images in {ImagesFolder}.", this);
+            return 0;
         }
-    }
 
-    private Sprite GetSpriteCut(int x, int y, int columns, int rows)
-    {
-        int spriteWidth = sourceTexture.width / rows;
-        int spriteHeight = sourceTexture.height / columns;
-
-        Texture2D slicedTexture = new Texture2D(spriteWidth, spriteHeight);
-
-        Color[] pixels = sourceTexture.GetPixels(x * spriteWidth, (rows - 1 - y) * spriteHeight, spriteWidth, spriteHeight);
-        slicedTexture.SetPixels(pixels);
-        slicedTexture.Apply();
-
-        Sprite slicedSprite = Sprite.Create(slicedTexture, new Rect(0, 0, spriteWidth, spriteHeight), Vector2.zero);
-        return slicedSprite;
-    }
-
-    public void LoadAndSliceTexture()
-    {
-        string folderPath = "Sprites/Fish";
-        Texture2D[] textures = Resources.LoadAll<Texture2D>(folderPath);
-
-        if (textures.Length > 0)
+        Texture2D texture = config.PickImage();
+        if (texture == null)
         {
-            int randomIndex = Random.Range(0, textures.Length);
-            Texture2D randomImage = textures[randomIndex];
-            BackGround.sprite = Sprite.Create(randomImage, new Rect(0, 0, randomImage.width, randomImage.height), Vector2.zero);
+            Debug.LogError($"BoardBuilder: the image library is out of date. Rescan {ImagesFolder}.", this);
+            return 0;
+        }
 
-            if (randomImage != null)
+        PuzzleConfig.Layout layout = config.PickLayout();
+        int divisions = layout.divisions;
+
+        reference.sprite = Track(Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), Center));
+        grid.constraintCount = divisions;
+        grid.cellSize = new Vector2(layout.cellSize, layout.cellSize);
+
+        int pieceWidth = texture.width / divisions;
+        int pieceHeight = texture.height / divisions;
+
+        for (int y = 0; y < divisions; y++)
+        {
+            for (int x = 0; x < divisions; x++)
             {
-                sourceTexture = randomImage;
-                int columns = 0;
-                for (int i = 0; i < numImages.Length; i++)
-                {
-                    if (numImages[i] == fatherOfPieces.transform.childCount)
-                    {
-                        columns = numColumsRows[i];
-                        gridLayoutGroup.constraintCount = numColumsRows[i];
-                        gridLayoutGroup.cellSize = new Vector2(numCellSize[i], numCellSize[i]);
-                    }
-                }
-                foreach (var item in sprites)
-                {
-                    item.rectTransform.sizeDelta = gridLayoutGroup.cellSize;
-                }
+                int id = y * divisions + x;
+                Rect area = new Rect(x * pieceWidth, (divisions - 1 - y) * pieceHeight, pieceWidth, pieceHeight);
 
+                PuzzlePiece piece = Instantiate(piecePrefab, tray, false);
+                piece.Setup(id, Track(Sprite.Create(texture, area, Center)), layout.cellSize, dragLayer, tray);
+                piece.ScatterTo(RandomAnchor(), UnityEngine.Random.Range(-tilt, tilt));
 
-                int rows = columns;
-
-                int spriteIndex = 0;
-
-                for (int y = 0; y < rows; y++)
-                {
-                    for (int x = 0; x < columns; x++)
-                    {
-                        sprites[spriteIndex].sprite = GetSpriteCut(x, y, columns, rows);
-                        spriteIndex++;
-                    }
-                }
-            }
-            else
-            {
-                Debug.Log("Failed to load image");
+                Slot slot = Instantiate(slotPrefab, grid.transform, false);
+                slot.Setup(id, dragLayer, onSlotFilled);
             }
         }
-        else
-        {
-            Debug.Log("No Images Found in the Specified Folder");
-        }
+
+        return divisions * divisions;
     }
 
-    public List<Image> GetSprites()
+    private void OnDestroy()
     {
-        return sprites;
+        for (int i = 0; i < generated.Count; i++) Destroy(generated[i]);
+        generated.Clear();
+    }
+
+    private Sprite Track(Sprite sprite)
+    {
+        generated.Add(sprite);
+        return sprite;
+    }
+
+    private Vector2 RandomAnchor()
+    {
+        float x = UnityEngine.Random.Range(bandX.x, bandX.y);
+        if (UnityEngine.Random.value < 0.5f) x = 1f - x;
+        return new Vector2(x, UnityEngine.Random.Range(bandY.x, bandY.y));
     }
 }

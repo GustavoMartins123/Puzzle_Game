@@ -1,5 +1,6 @@
 {
-    "name": "PlayerInputActions2",
+    "version": 1,
+    "name": "PlayerInputActions",
     "maps": [
         {
             "name": "Move",
@@ -12,7 +13,8 @@
                     "expectedControlType": "Button",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": true,
+                    "priority": 0
                 },
                 {
                     "name": "MousePos",
@@ -21,7 +23,8 @@
                     "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
-                    "initialStateCheck": true
+                    "initialStateCheck": true,
+                    "priority": 0
                 }
             ],
             "bindings": [
