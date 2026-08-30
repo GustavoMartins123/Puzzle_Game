@@ -15,12 +15,17 @@ public class BoardBuilder : MonoBehaviour
     [SerializeField] private GridLayoutGroup grid;
     [SerializeField] private Image reference;
 
+    [Header("Completion Wave")]
+    [SerializeField] private float waveStep = 0.07f;
+
     [Header("Scatter")]
     [SerializeField] private Vector2 bandX = new Vector2(0.05f, 0.28f);
     [SerializeField] private Vector2 bandY = new Vector2(0.12f, 0.88f);
     [SerializeField] private float tilt = 12f;
 
     private readonly List<Sprite> generated = new List<Sprite>();
+    private readonly List<Slot> slots = new List<Slot>();
+    private int divisionsUsed;
 
     public int Build(PuzzleConfig config, DragLayer dragLayer, Action<Slot> onSlotFilled)
     {
@@ -60,10 +65,29 @@ public class BoardBuilder : MonoBehaviour
 
                 Slot slot = Instantiate(slotPrefab, grid.transform, false);
                 slot.Setup(id, dragLayer, onSlotFilled);
+                slots.Add(slot);
             }
         }
 
+        divisionsUsed = divisions;
         return divisions * divisions;
+    }
+
+    public float PlayCompletionWave()
+    {
+        if (slots.Count == 0) return 0f;
+
+        float longest = 0f;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            float delay = (i % divisionsUsed + i / divisionsUsed) * waveStep;
+            SlotFeedback feedback = slots[i].Feedback;
+            feedback.PlayWave(delay);
+            longest = Mathf.Max(longest, delay + feedback.WaveDuration);
+        }
+
+        return longest;
     }
 
     private void OnDestroy()

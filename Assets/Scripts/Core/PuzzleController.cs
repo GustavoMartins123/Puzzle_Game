@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PuzzleController : MonoBehaviour
@@ -6,6 +7,7 @@ public class PuzzleController : MonoBehaviour
     [SerializeField] private BoardBuilder builder;
     [SerializeField] private DragLayer dragLayer;
     [SerializeField] private GameMenu menu;
+    [SerializeField] private float winDelay = 0.35f;
 
     private GameInput input;
     private int totalPieces;
@@ -36,7 +38,14 @@ public class PuzzleController : MonoBehaviour
     private void OnSlotFilled(Slot slot)
     {
         placedPieces++;
-        if (placedPieces >= totalPieces) menu.ShowWin();
+        if (placedPieces >= totalPieces) StartCoroutine(CelebrateThenFinish());
+    }
+
+    private IEnumerator CelebrateThenFinish()
+    {
+        float duration = builder.PlayCompletionWave();
+        yield return new WaitForSecondsRealtime(duration + winDelay);
+        menu.ShowWin();
     }
 
     private void CancelDrag()

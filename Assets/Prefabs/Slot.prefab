@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 7510588796933338829}
   - component: {fileID: 8124454772967732827}
   - component: {fileID: 2285380695085341575}
+  - component: {fileID: 4410072318846620914}
   m_Layer: 5
   m_Name: Slot
   m_TagString: Untagged
@@ -89,3 +90,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   image: {fileID: 8124454772967732827}
+  feedback: {fileID: 4410072318846620914}
+--- !u!114 &4410072318846620914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2335320416953746382}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0debfc3545f5a7706e37110b30bef5fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  snapDuration: 0.45
+  glideOvershoot: 1.4
+  scaleOvershoot: 3.2
+  entryScale: 1.35
+  entryTilt: 20
+  punchStrength: 0.24
+  punchVibrato: 7
+  flashColor: {r: 1, g: 0.98, b: 0.78, a: 1}
+  waveDuration: 0.55
+  wavePunch: 0.3

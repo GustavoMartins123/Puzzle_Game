@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class Slot : MonoBehaviour, IDropHandler
 {
     [SerializeField] private Image image;
+    [SerializeField] private SlotFeedback feedback;
 
     private RectTransform rectTransform;
     private DragLayer dragLayer;
@@ -16,6 +17,8 @@ public class Slot : MonoBehaviour, IDropHandler
     public int Id => id;
 
     public RectTransform RectTransform => rectTransform;
+
+    public SlotFeedback Feedback => feedback;
 
     private void Awake() => rectTransform = (RectTransform)transform;
 
@@ -31,9 +34,12 @@ public class Slot : MonoBehaviour, IDropHandler
         PuzzlePiece piece = dragLayer.Held;
         if (piece == null || piece.Id != id) return;
 
+        Vector3 origin = piece.RectTransform.position;
+
         dragLayer.Release();
         piece.PlaceInto(this);
         image.raycastTarget = false;
+        feedback.PlayFilled(piece, origin);
         filled?.Invoke(this);
     }
 }

@@ -18,6 +18,10 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public bool Placed => placed;
 
+    public RectTransform RectTransform => rectTransform;
+
+    public Image Image => image;
+
     private void Awake() => rectTransform = (RectTransform)transform;
 
     public void Setup(int id, Sprite sprite, float cellSize, DragLayer dragLayer, RectTransform tray)
