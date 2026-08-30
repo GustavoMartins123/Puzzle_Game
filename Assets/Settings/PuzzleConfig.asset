@@ -21,4 +21,16 @@ MonoBehaviour:
     cellSize: 150
   - divisions: 5
     cellSize: 120
-  imagePaths: []
+  imagePaths:
+  - PuzzleImages/01_coral_reef
+  - PuzzleImages/02_koi_pond
+  - PuzzleImages/03_kelp_forest
+  - PuzzleImages/04_tide_pool
+  - PuzzleImages/05_night_festival
+  - PuzzleImages/06_floating_market
+  - PuzzleImages/07_warrior_portrait
+  - PuzzleImages/08_haunted_greenhouse
+  - PuzzleImages/09_abyssal_creature
+  - PuzzleImages/10_medieval_market
+  - PuzzleImages/11_illuminated_manuscript
+  - PuzzleImages/12_monster_bestiary
