@@ -34,13 +34,14 @@ public static class ProceduralPuzzleValidator
 
         ValidateSelectionUi();
         ValidateSessionDefinitions();
+        ValidateTrayLayouts();
         ValidateProceduralPrefabs();
         ValidateGameScene();
 
         Debug.Log(
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
             $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
-            "selection UI, prefabs, and scene are valid.");
+            "selection UI, responsive trays, prefabs, and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -71,21 +72,21 @@ public static class ProceduralPuzzleValidator
                     {
                         PuzzleCutStyle style = profile.AllowedCutStyles[styleIndex];
                         int cutSeed = 1000 + profileIndex * 100 + layoutIndex * 10 + styleIndex;
-                        int scatterSeed = 2000 + profileIndex * 100 + layoutIndex * 10 + styleIndex;
+                        int traySeed = 2000 + profileIndex * 100 + layoutIndex * 10 + styleIndex;
                         var session = new PuzzleSessionDefinition(
                             profile,
                             layout,
                             style,
                             texture,
                             cutSeed,
-                            scatterSeed);
+                            traySeed);
 
                         if (!session.TryValidate(out string sessionError))
                             throw new InvalidOperationException(
                                 $"Valid session was rejected: {sessionError}.");
                         if (session.Difficulty != profile || !profile.ContainsLayout(session.Layout) ||
                             session.CutStyle != style || session.Texture != texture ||
-                            session.CutSeed != cutSeed || session.ScatterSeed != scatterSeed)
+                            session.CutSeed != cutSeed || session.TraySeed != traySeed)
                             throw new InvalidOperationException(
                                 "Puzzle session did not retain its exact immutable definition.");
                     }
@@ -96,6 +97,80 @@ public static class ProceduralPuzzleValidator
         {
             UnityEngine.Object.DestroyImmediate(texture);
         }
+    }
+
+    private static void ValidateTrayLayouts()
+    {
+        PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+            "Assets/Settings/PuzzleConfig.asset");
+        if (config == null)
+            throw new InvalidOperationException("Puzzle configuration is missing.");
+        if (!config.TryValidate(out string configError))
+            throw new InvalidOperationException(
+                $"Puzzle configuration is invalid: {configError}.");
+
+        Vector2[] screenSizes =
+        {
+            new Vector2(1600f, 900f),
+            new Vector2(1440f, 900f),
+            new Vector2(1200f, 900f),
+        };
+        float[] imageAspects = { 0.6f, 1f, 1.8f };
+
+        for (int screenIndex = 0; screenIndex < screenSizes.Length; screenIndex++)
+        {
+            Vector2 viewport = ReferenceViewportForScreen(screenSizes[screenIndex]);
+            for (int profileIndex = 0; profileIndex < config.DifficultyProfiles.Count; profileIndex++)
+            {
+                PuzzleDifficultyProfile profile = config.DifficultyProfiles[profileIndex];
+                for (int layoutIndex = 0; layoutIndex < profile.Layouts.Count; layoutIndex++)
+                {
+                    PuzzleLayout puzzleLayout = profile.Layouts[layoutIndex];
+                    for (int aspectIndex = 0; aspectIndex < imageAspects.Length; aspectIndex++)
+                    {
+                        float aspect = imageAspects[aspectIndex];
+                        Vector2 cellSize = aspect >= 1f
+                            ? new Vector2(puzzleLayout.cellSize, puzzleLayout.cellSize / aspect)
+                            : new Vector2(puzzleLayout.cellSize * aspect, puzzleLayout.cellSize);
+                        Vector2 pieceSize =
+                            cellSize * (1f + profile.CutDepth * 2f);
+
+                        if (!PieceTrayController.TryCalculateLayout(
+                                viewport,
+                                Vector2.one * 600f,
+                                puzzleLayout.divisions * puzzleLayout.divisions,
+                                pieceSize,
+                                profile.InitialTilt,
+                                out PieceTrayLayout trayLayout,
+                                out string trayError))
+                            throw new InvalidOperationException(
+                                $"Tray layout failed for {screenSizes[screenIndex].x:F0}x" +
+                                $"{screenSizes[screenIndex].y:F0}, {profile.DisplayName}, " +
+                                $"{puzzleLayout.divisions}x{puzzleLayout.divisions}, aspect {aspect:F1}: " +
+                                $"{trayError}.");
+
+                        if (trayLayout.PageCount <= 0 || trayLayout.CapacityPerPage <= 0 ||
+                            trayLayout.CellSize.x <= 0f || trayLayout.CellSize.y <= 0f ||
+                            trayLayout.PieceScale <= 0f || trayLayout.PieceScale > 1f)
+                            throw new InvalidOperationException("Tray layout returned invalid dimensions.");
+
+                        PieceTrayLayoutMode expectedMode = viewport.x / viewport.y >= 1.5f
+                            ? PieceTrayLayoutMode.SidePanels
+                            : PieceTrayLayoutMode.BottomPanel;
+                        if (trayLayout.Mode != expectedMode)
+                            throw new InvalidOperationException("Tray selected the wrong responsive mode.");
+                    }
+                }
+            }
+        }
+    }
+
+    private static Vector2 ReferenceViewportForScreen(Vector2 screenSize)
+    {
+        float widthScale = screenSize.x / 1600f;
+        float heightScale = screenSize.y / 900f;
+        float scaleFactor = Mathf.Sqrt(widthScale * heightScale);
+        return screenSize / scaleFactor;
     }
 
     private static void ValidateSelectionUi()
@@ -135,6 +210,7 @@ public static class ProceduralPuzzleValidator
             ProceduralPuzzlePreviewGraphic[] previews =
                 menu.GetComponentsInChildren<ProceduralPuzzlePreviewGraphic>(true);
             Button[] buttons = menu.GetComponentsInChildren<Button>(true);
+            Text[] texts = menu.GetComponentsInChildren<Text>(true);
 
             int difficultyCount = config.DifficultyProfiles.Count;
             if (toggles.Length != styleCount + difficultyCount)
@@ -147,6 +223,12 @@ public static class ProceduralPuzzleValidator
             if (buttons.Length != 1)
                 throw new InvalidOperationException(
                     $"Selection UI has {buttons.Length} confirmation buttons; expected 1.");
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i].fontSize < 12 || !texts[i].alignByGeometry)
+                    throw new InvalidOperationException(
+                        $"Selection UI text '{texts[i].name}' is not configured for crisp rendering.");
+            }
 
             Transform options = menu.transform.Find("Panel/Options");
             RectTransform panelRect = menu.transform.Find("Panel") as RectTransform;
@@ -348,6 +430,31 @@ public static class ProceduralPuzzleValidator
 
         if (controller == null)
             throw new InvalidOperationException("Game scene is missing PuzzleController.");
+
+        Canvas canvas = null;
+        PieceTrayController tray = null;
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            if (canvas == null) canvas = root.GetComponentInChildren<Canvas>(true);
+            if (tray == null) tray = root.GetComponentInChildren<PieceTrayController>(true);
+        }
+
+        CanvasScaler scaler = canvas != null ? canvas.GetComponent<CanvasScaler>() : null;
+        if (canvas == null || scaler == null || !canvas.pixelPerfect ||
+            scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize ||
+            scaler.referenceResolution != new Vector2(1600f, 900f) ||
+            !Mathf.Approximately(scaler.matchWidthOrHeight, 0.5f))
+            throw new InvalidOperationException(
+                "Game Canvas must use pixel-perfect 1600x900 scale-with-screen-size rendering.");
+
+        BoardBuilder builder = controller.GetComponent<BoardBuilder>();
+        if (tray == null || builder == null)
+            throw new InvalidOperationException("Game scene is missing the canonical piece tray.");
+        var serializedBuilder = new SerializedObject(builder);
+        SerializedProperty trayProperty = serializedBuilder.FindProperty("tray");
+        if (trayProperty == null || trayProperty.objectReferenceValue != tray)
+            throw new InvalidOperationException(
+                "BoardBuilder must reference the scene PieceTrayController.");
 
         var serializedController = new SerializedObject(controller);
         SerializedProperty selectionRoot = serializedController.FindProperty("selectionRoot");

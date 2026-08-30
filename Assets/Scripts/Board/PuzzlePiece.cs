@@ -6,13 +6,10 @@ using UnityEngine.UI;
 public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [SerializeField] private PieceFeedback feedback;
-    [SerializeField] private float dropMargin = 0.05f;
 
     private RectTransform rectTransform;
     private DragLayer dragLayer;
-    private RectTransform tray;
-    private Vector2 trayAnchor;
-    private Quaternion trayRotation;
+    private PieceTrayController tray;
     private int id;
     private bool placed;
     private bool rejected;
@@ -41,7 +38,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         Vector2 cellSize,
         float cutPadding,
         DragLayer dragLayer,
-        RectTransform tray)
+        PieceTrayController tray)
     {
         if (dragLayer == null) throw new System.ArgumentNullException(nameof(dragLayer));
         if (tray == null) throw new System.ArgumentNullException(nameof(tray));
@@ -53,20 +50,38 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         rectTransform.sizeDelta = Vector2.Scale(cellSize, Vector2.one * (1f + cutPadding * 2f));
     }
 
-    public void ScatterTo(Vector2 anchor, float tiltDegrees)
-    {
-        trayAnchor = anchor;
-        trayRotation = Quaternion.Euler(0f, 0f, tiltDegrees);
-        ReturnToTray();
-    }
-
     public void AttachTo(RectTransform parent)
     {
+        if (parent == null) throw new System.ArgumentNullException(nameof(parent));
         rectTransform.SetParent(parent, false);
         rectTransform.anchorMin = Vector2.one * 0.5f;
         rectTransform.anchorMax = Vector2.one * 0.5f;
         rectTransform.anchoredPosition = Vector2.zero;
         rectTransform.localRotation = Quaternion.identity;
+        rectTransform.localScale = Vector3.one;
+    }
+
+    internal void AssignTray(PieceTrayController controller)
+    {
+        if (controller == null) throw new System.ArgumentNullException(nameof(controller));
+        if (controller != tray)
+            throw new System.InvalidOperationException("PuzzlePiece received a different tray controller.");
+    }
+
+    internal void AttachToTrayCell(RectTransform cell, float scale, float tiltDegrees)
+    {
+        if (cell == null) throw new System.ArgumentNullException(nameof(cell));
+        if (!float.IsFinite(scale) || scale <= 0f || scale > 1f)
+            throw new System.ArgumentOutOfRangeException(nameof(scale));
+        if (!float.IsFinite(tiltDegrees))
+            throw new System.ArgumentOutOfRangeException(nameof(tiltDegrees));
+
+        rectTransform.SetParent(cell, false);
+        rectTransform.anchorMin = Vector2.one * 0.5f;
+        rectTransform.anchorMax = Vector2.one * 0.5f;
+        rectTransform.anchoredPosition = Vector2.zero;
+        rectTransform.localRotation = Quaternion.Euler(0f, 0f, tiltDegrees);
+        rectTransform.localScale = Vector3.one * scale;
     }
 
     public void MarkRejected() => rejected = true;
@@ -75,11 +90,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     {
         rejected = false;
         image.raycastTarget = true;
-        rectTransform.SetParent(tray, false);
-        rectTransform.anchorMin = trayAnchor;
-        rectTransform.anchorMax = trayAnchor;
-        rectTransform.anchoredPosition = Vector2.zero;
-        rectTransform.localRotation = trayRotation;
+        tray.ReturnToCell(this);
     }
 
     public void PlaceInto(Slot slot)
@@ -87,6 +98,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         placed = true;
         image.raycastTarget = false;
         AttachTo(slot.RectTransform);
+        tray.CommitPlacement(this);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -94,7 +106,17 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         if (placed || dragLayer.IsDragging) return;
         feedback.Stop();
         image.raycastTarget = false;
-        dragLayer.Take(this, eventData.position);
+        tray.BeginDrag(this);
+        try
+        {
+            dragLayer.Take(this, eventData.position);
+        }
+        catch
+        {
+            image.raycastTarget = true;
+            tray.ReturnToCell(this);
+            throw;
+        }
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -109,25 +131,9 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         Vector3 origin = rectTransform.position;
 
         dragLayer.Release();
-        if (!wasRejected) MoveHomeTo(origin, eventData.pressEventCamera);
         ReturnToTray();
 
         if (wasRejected) feedback.PlayReturn(origin);
         else feedback.PlayDrop();
-    }
-
-    private void MoveHomeTo(Vector3 worldPoint, Camera eventCamera)
-    {
-        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(eventCamera, worldPoint);
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                tray, screenPoint, eventCamera, out Vector2 local)) return;
-
-        Rect area = tray.rect;
-        float limit = 1f - dropMargin;
-
-        trayAnchor = new Vector2(
-            Mathf.Clamp(Mathf.InverseLerp(area.xMin, area.xMax, local.x), dropMargin, limit),
-            Mathf.Clamp(Mathf.InverseLerp(area.yMin, area.yMax, local.y), dropMargin, limit));
-        trayRotation = Quaternion.identity;
     }
 }

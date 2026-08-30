@@ -9,14 +9,14 @@ public sealed class PuzzleSessionDefinition
         PuzzleCutStyle cutStyle,
         Texture2D texture,
         int cutSeed,
-        int scatterSeed)
+        int traySeed)
     {
         Difficulty = difficulty != null ? difficulty : throw new ArgumentNullException(nameof(difficulty));
         Layout = layout;
         CutStyle = cutStyle;
         Texture = texture != null ? texture : throw new ArgumentNullException(nameof(texture));
         CutSeed = cutSeed;
-        ScatterSeed = scatterSeed;
+        TraySeed = traySeed;
 
         if (!TryValidate(out string error))
             throw new ArgumentException($"Invalid puzzle session: {error}.");
@@ -32,7 +32,7 @@ public sealed class PuzzleSessionDefinition
 
     public int CutSeed { get; }
 
-    public int ScatterSeed { get; }
+    public int TraySeed { get; }
 
     public bool TryValidate(out string error)
     {
@@ -66,7 +66,7 @@ public sealed class PuzzleSessionDefinition
             return false;
         }
 
-        if (CutSeed <= 0 || ScatterSeed <= 0)
+        if (CutSeed <= 0 || TraySeed <= 0)
         {
             error = "session seeds must be positive";
             return false;

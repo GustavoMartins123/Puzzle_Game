@@ -114,7 +114,7 @@ public class PuzzleConfig : ScriptableObject
 
     public int CreateCutSeed() => useFixedCutSeed ? cutSeed : UnityEngine.Random.Range(1, int.MaxValue);
 
-    public int CreateScatterSeed() => UnityEngine.Random.Range(1, int.MaxValue);
+    public int CreateTraySeed() => UnityEngine.Random.Range(1, int.MaxValue);
 
     public Texture2D PickImage()
     {

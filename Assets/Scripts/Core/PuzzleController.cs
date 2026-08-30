@@ -111,7 +111,7 @@ public class PuzzleController : MonoBehaviour
             cutStyle,
             puzzleTexture,
             config.CreateCutSeed(),
-            config.CreateScatterSeed());
+            config.CreateTraySeed());
         if (!BuildSession(session)) return false;
 
         currentSession = session;

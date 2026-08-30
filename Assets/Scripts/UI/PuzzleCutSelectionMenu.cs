@@ -107,7 +107,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "Title",
             panel,
             "CONFIGURE SUA PARTIDA",
-            30,
+            32,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleCenter,
@@ -119,7 +119,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "Subtitle",
             panel,
             "Escolha a dificuldade e depois selecione um formato.",
-            17,
+            18,
             FontStyle.Normal,
             MutedTextColor,
             TextAnchor.MiddleCenter,
@@ -210,7 +210,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "DifficultySummary",
             parent,
             string.Empty,
-            14,
+            16,
             FontStyle.Normal,
             MutedTextColor,
             TextAnchor.MiddleCenter,
@@ -274,7 +274,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "Label",
             cardObject.transform,
             profile.DisplayName,
-            17,
+            18,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
@@ -331,12 +331,12 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "Label",
             cardObject.transform,
             LabelFor(style),
-            style == PuzzleCutStyle.FullyRandom ? 12 : 15,
+            style == PuzzleCutStyle.FullyRandom ? 12 : 16,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
-            new Vector2(50f, 0f),
-            new Vector2(158f, 40f),
+            new Vector2(46f, 0f),
+            new Vector2(168f, 40f),
             new Vector2(0f, 0.5f),
             new Vector2(0f, 0.5f));
 
@@ -406,7 +406,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "PreviewTitle",
             panel,
             string.Empty,
-            22,
+            24,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleCenter,
@@ -456,7 +456,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             "PreviewCaption",
             panel,
             "A prévia usa a imagem e a geometria da partida.",
-            15,
+            16,
             FontStyle.Normal,
             MutedTextColor,
             TextAnchor.MiddleCenter,
@@ -578,6 +578,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         text.fontStyle = fontStyle;
         text.color = color;
         text.alignment = alignment;
+        text.alignByGeometry = true;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Truncate;
         text.raycastTarget = false;

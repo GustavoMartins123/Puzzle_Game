@@ -20,6 +20,7 @@ public class PieceFeedback : MonoBehaviour
     private Image image;
     private Color baseColor;
     private Quaternion restRotation;
+    private Vector3 restScale = Vector3.one;
 
     private void Awake()
     {
@@ -40,10 +41,11 @@ public class PieceFeedback : MonoBehaviour
         Stop();
 
         restRotation = rectTransform.localRotation;
-        rectTransform.localScale = Vector3.one * dropScale;
+        restScale = rectTransform.localScale;
+        rectTransform.localScale = restScale * dropScale;
 
         DOTween.Sequence().SetUpdate(true).SetLink(gameObject)
-            .Append(rectTransform.DOScale(Vector3.one, dropDuration).SetEase(Ease.OutBack, 2.6f))
+            .Append(rectTransform.DOScale(restScale, dropDuration).SetEase(Ease.OutBack, 2.6f))
             .OnComplete(Settle);
     }
 
@@ -52,6 +54,7 @@ public class PieceFeedback : MonoBehaviour
         Stop();
 
         restRotation = rectTransform.localRotation;
+        restScale = rectTransform.localScale;
         rectTransform.position = worldOrigin;
         rectTransform.localRotation = Quaternion.identity;
 
@@ -74,6 +77,6 @@ public class PieceFeedback : MonoBehaviour
         image.color = baseColor;
         rectTransform.anchoredPosition = Vector2.zero;
         rectTransform.localRotation = restRotation;
-        rectTransform.localScale = Vector3.one;
+        rectTransform.localScale = restScale;
     }
 }

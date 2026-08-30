@@ -9,16 +9,12 @@ public class BoardBuilder : MonoBehaviour
 
     [SerializeField] private PuzzlePiece piecePrefab;
     [SerializeField] private Slot slotPrefab;
-    [SerializeField] private RectTransform tray;
+    [SerializeField] private PieceTrayController tray;
     [SerializeField] private GridLayoutGroup grid;
     [SerializeField] private Image reference;
 
     [Header("Completion Wave")]
     [SerializeField] private float waveStep = 0.07f;
-
-    [Header("Scatter")]
-    [SerializeField] private Vector2 bandX = new Vector2(0.05f, 0.28f);
-    [SerializeField] private Vector2 bandY = new Vector2(0.12f, 0.88f);
 
     private readonly List<Sprite> generated = new List<Sprite>();
     private readonly List<PuzzlePiece> pieces = new List<PuzzlePiece>();
@@ -71,11 +67,11 @@ public class BoardBuilder : MonoBehaviour
                 cutStyle,
                 difficulty.CutDepth,
                 session.CutSeed);
-            var scatterRandom = new System.Random(session.ScatterSeed);
-
             int divisions = layout.divisions;
             Vector2 cellSize = CalculateCellSize(texture, layout.cellSize);
             float cutPadding = cutStyle == PuzzleCutStyle.Square ? 0f : difficulty.CutDepth;
+            Vector2 pieceVisualSize =
+                Vector2.Scale(cellSize, Vector2.one * (1f + cutPadding * 2f));
             Sprite sourceSprite = Track(Sprite.Create(
                 texture,
                 new Rect(0f, 0f, texture.width, texture.height),
@@ -100,18 +96,25 @@ public class BoardBuilder : MonoBehaviour
                     int id = y * divisions + x;
                     ProceduralPuzzleGeometry geometry = geometries[x, divisions - 1 - y];
 
-                    PuzzlePiece piece = Instantiate(piecePrefab, tray, false);
+                    PuzzlePiece piece = Instantiate(piecePrefab, tray.Root, false);
                     pieces.Add(piece);
                     piece.Setup(id, sourceSprite, geometry, cellSize, cutPadding, dragLayer, tray);
-                    piece.ScatterTo(
-                        RandomAnchor(scatterRandom),
-                        RandomRange(scatterRandom, -difficulty.InitialTilt, difficulty.InitialTilt));
 
                     Slot slot = Instantiate(slotPrefab, grid.transform, false);
                     slots.Add(slot);
                     slot.Setup(id, geometry, cutPadding, dragLayer, onSlotFilled);
                 }
             }
+
+            if (!tray.TryConfigure(
+                    pieces,
+                    pieceVisualSize,
+                    difficulty.InitialTilt,
+                    session.TraySeed,
+                    gridRect,
+                    reference.rectTransform,
+                    out string trayError))
+                throw new InvalidOperationException($"Piece tray configuration failed: {trayError}.");
 
             divisionsUsed = divisions;
             return divisions * divisions;
@@ -132,6 +135,7 @@ public class BoardBuilder : MonoBehaviour
             if (slots[i] != null) Destroy(slots[i].gameObject);
         pieces.Clear();
         slots.Clear();
+        if (tray != null) tray.Clear();
         ReleaseGeneratedSprites();
         divisionsUsed = 0;
 
@@ -188,7 +192,7 @@ public class BoardBuilder : MonoBehaviour
     {
         if (piecePrefab == null) error = "piece prefab is missing";
         else if (slotPrefab == null) error = "slot prefab is missing";
-        else if (tray == null) error = "piece tray is missing";
+        else if (tray == null) error = "piece tray controller is missing";
         else if (grid == null) error = "slot grid is missing";
         else if (reference == null) error = "reference image is missing";
         else
@@ -199,14 +203,4 @@ public class BoardBuilder : MonoBehaviour
 
         return false;
     }
-
-    private Vector2 RandomAnchor(System.Random random)
-    {
-        float x = RandomRange(random, bandX.x, bandX.y);
-        if (random.NextDouble() < 0.5d) x = 1f - x;
-        return new Vector2(x, RandomRange(random, bandY.x, bandY.y));
-    }
-
-    private static float RandomRange(System.Random random, float minimum, float maximum) =>
-        Mathf.Lerp(minimum, maximum, (float)random.NextDouble());
 }

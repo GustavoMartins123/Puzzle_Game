@@ -90,7 +90,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   feedback: {fileID: 1955043827640118372}
-  dropMargin: 0.05
 --- !u!114 &1955043827640118372
 MonoBehaviour:
   m_ObjectHideFlags: 0
