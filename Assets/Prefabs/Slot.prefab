@@ -111,5 +111,8 @@ MonoBehaviour:
   punchStrength: 0.24
   punchVibrato: 7
   flashColor: {r: 1, g: 0.98, b: 0.78, a: 1}
+  rejectColor: {r: 1, g: 0.35, b: 0.32, a: 1}
+  rejectDuration: 0.35
+  rejectTilt: 9
   waveDuration: 0.55
   wavePunch: 0.3

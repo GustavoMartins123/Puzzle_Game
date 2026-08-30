@@ -32,7 +32,14 @@ public class Slot : MonoBehaviour, IDropHandler
     public void OnDrop(PointerEventData eventData)
     {
         PuzzlePiece piece = dragLayer.Held;
-        if (piece == null || piece.Id != id) return;
+        if (piece == null) return;
+
+        if (piece.Id != id)
+        {
+            piece.MarkRejected();
+            feedback.PlayRejected(image);
+            return;
+        }
 
         Vector3 origin = piece.RectTransform.position;
 

@@ -38,11 +38,11 @@ MonoBehaviour:
   showPreviewPanel: 1
   storeSettingsLocation: 0
   modules:
-    showPanel: 1
-    audioEnabled: 1
-    physicsEnabled: 1
-    physics2DEnabled: 1
-    spriteEnabled: 1
+    showPanel: 0
+    audioEnabled: 0
+    physicsEnabled: 0
+    physics2DEnabled: 0
+    spriteEnabled: 0
     uiEnabled: 1
     uiToolkitEnabled: 0
     textMeshProEnabled: 0

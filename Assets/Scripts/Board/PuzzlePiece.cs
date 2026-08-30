@@ -5,6 +5,8 @@ using UnityEngine.UI;
 public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [SerializeField] private Image image;
+    [SerializeField] private PieceFeedback feedback;
+    [SerializeField] private float dropMargin = 0.05f;
 
     private RectTransform rectTransform;
     private DragLayer dragLayer;
@@ -13,6 +15,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private Quaternion trayRotation;
     private int id;
     private bool placed;
+    private bool rejected;
 
     public int Id => id;
 
@@ -49,8 +52,11 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         rectTransform.localRotation = Quaternion.identity;
     }
 
+    public void MarkRejected() => rejected = true;
+
     public void ReturnToTray()
     {
+        rejected = false;
         image.raycastTarget = true;
         rectTransform.SetParent(tray, false);
         rectTransform.anchorMin = trayAnchor;
@@ -69,6 +75,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (placed || dragLayer.IsDragging) return;
+        feedback.Stop();
         image.raycastTarget = false;
         dragLayer.Take(this, eventData.position);
     }
@@ -80,7 +87,30 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnEndDrag(PointerEventData eventData)
     {
         if (dragLayer.Held != this) return;
+
+        bool wasRejected = rejected;
+        Vector3 origin = rectTransform.position;
+
         dragLayer.Release();
+        if (!wasRejected) MoveHomeTo(origin, eventData.pressEventCamera);
         ReturnToTray();
+
+        if (wasRejected) feedback.PlayReturn(origin);
+        else feedback.PlayDrop();
+    }
+
+    private void MoveHomeTo(Vector3 worldPoint, Camera eventCamera)
+    {
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(eventCamera, worldPoint);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                tray, screenPoint, eventCamera, out Vector2 local)) return;
+
+        Rect area = tray.rect;
+        float limit = 1f - dropMargin;
+
+        trayAnchor = new Vector2(
+            Mathf.Clamp(Mathf.InverseLerp(area.xMin, area.xMax, local.x), dropMargin, limit),
+            Mathf.Clamp(Mathf.InverseLerp(area.yMin, area.yMax, local.y), dropMargin, limit));
+        trayRotation = Quaternion.identity;
     }
 }

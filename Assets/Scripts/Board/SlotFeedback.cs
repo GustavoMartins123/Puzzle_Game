@@ -18,6 +18,11 @@ public class SlotFeedback : MonoBehaviour
     [Header("Flash")]
     [SerializeField] private Color flashColor = new Color(1f, 0.98f, 0.78f, 1f);
 
+    [Header("Reject")]
+    [SerializeField] private Color rejectColor = new Color(1f, 0.35f, 0.32f, 1f);
+    [SerializeField] private float rejectDuration = 0.35f;
+    [SerializeField] private float rejectTilt = 9f;
+
     [Header("Completion Wave")]
     [SerializeField] private float waveDuration = 0.55f;
     [SerializeField] private float wavePunch = 0.3f;
@@ -37,9 +42,6 @@ public class SlotFeedback : MonoBehaviour
 
         RectTransform pieceRect = piece.RectTransform;
         pieceRect.position = worldOrigin;
-
-        Vector2 origin = pieceRect.anchoredPosition;
-        pieceRect.anchoredPosition = origin;
         pieceRect.localScale = Vector3.one * entryScale;
         pieceRect.localRotation = Quaternion.Euler(0f, 0f, Random.Range(-entryTilt, entryTilt));
 
@@ -59,6 +61,25 @@ public class SlotFeedback : MonoBehaviour
         sequence.Insert(snapDuration * 0.3f, rectTransform
             .DOPunchScale(Vector3.one * punchStrength, snapDuration * 0.7f, punchVibrato, 0.7f));
         sequence.OnComplete(Settle);
+    }
+
+    public void PlayRejected(Image slotImage)
+    {
+        DOTween.Kill(rectTransform);
+        DOTween.Kill(slotImage);
+
+        Color slotColor = slotImage.color;
+
+        Sequence sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        sequence.Insert(0f, slotImage.DOColor(rejectColor, rejectDuration * 0.3f)
+            .SetLoops(2, LoopType.Yoyo));
+        sequence.Insert(0f, rectTransform
+            .DOPunchRotation(new Vector3(0f, 0f, rejectTilt), rejectDuration, punchVibrato, 0.5f));
+        sequence.OnComplete(() =>
+        {
+            slotImage.color = slotColor;
+            rectTransform.localRotation = Quaternion.identity;
+        });
     }
 
     public void PlayWave(float delay)
