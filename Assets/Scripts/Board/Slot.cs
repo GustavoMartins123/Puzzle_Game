@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public enum PuzzleDropFailure
@@ -10,7 +9,7 @@ public enum PuzzleDropFailure
 }
 
 [RequireComponent(typeof(ProceduralPuzzleImage))]
-public class Slot : MonoBehaviour, IDropHandler
+public class Slot : MonoBehaviour
 {
     [SerializeField] private SlotFeedback feedback;
 
@@ -59,10 +58,11 @@ public class Slot : MonoBehaviour, IDropHandler
             Vector2.one * (1f + cutPadding * 2f));
     }
 
-    public void OnDrop(PointerEventData eventData)
+    public void TryDrop(PuzzlePiece piece)
     {
-        PuzzlePiece piece = dragLayer.Held;
-        if (piece == null) return;
+        if (piece == null) throw new ArgumentNullException(nameof(piece));
+        if (dragLayer.Held != piece)
+            throw new InvalidOperationException("Slot can only evaluate the piece held by DragLayer.");
 
         if (piece.Id != id)
         {

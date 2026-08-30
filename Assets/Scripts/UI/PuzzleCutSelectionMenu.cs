@@ -16,6 +16,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         new Dictionary<PuzzleCutStyle, Toggle>();
 
     private Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> confirmed;
+    private PuzzleConfig config;
+    private PuzzleProgressData progress;
     private PuzzleDifficultyProfile selectedDifficulty;
     private PuzzleCutStyle selectedStyle;
     private Button confirmButton;
@@ -32,6 +34,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         PuzzleDifficultyProfile initialDifficulty,
         PuzzleCutStyle initialStyle,
         Texture2D previewTexture,
+        PuzzleConfig config,
+        PuzzleProgressData progress,
         Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> onConfirmed)
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
@@ -67,6 +71,14 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             throw new ArgumentException(
                 $"Initial style {initialStyle} is not allowed by {initialDifficulty.DisplayName}.");
         if (previewTexture == null) throw new ArgumentNullException(nameof(previewTexture));
+        if (config == null) throw new ArgumentNullException(nameof(config));
+        if (progress == null) throw new ArgumentNullException(nameof(progress));
+        progress.Validate(config);
+        if (!progress.IsDifficultyUnlocked(config, initialDifficulty))
+            throw new ArgumentException(
+                $"Initial difficulty {initialDifficulty.DisplayName} is locked.");
+        if (!progress.IsStyleUnlocked(config, initialStyle))
+            throw new ArgumentException($"Initial style {initialStyle} is locked.");
         if (onConfirmed == null) throw new ArgumentNullException(nameof(onConfirmed));
 
         GameObject root = CreateUiObject("CutStyleSelection", parent);
@@ -77,7 +89,14 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         overlay.raycastTarget = true;
 
         PuzzleCutSelectionMenu menu = root.AddComponent<PuzzleCutSelectionMenu>();
-        menu.Initialize(profileList, initialDifficulty, initialStyle, previewTexture, onConfirmed);
+        menu.Initialize(
+            profileList,
+            initialDifficulty,
+            initialStyle,
+            previewTexture,
+            config,
+            progress,
+            onConfirmed);
         rootRect.SetAsLastSibling();
         return menu;
     }
@@ -88,16 +107,30 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         Destroy(gameObject);
     }
 
+    public void ShowError(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            throw new ArgumentException("Cut selection error is required.", nameof(message));
+        if (difficultySummary == null)
+            throw new InvalidOperationException("Difficulty summary is missing.");
+        difficultySummary.color = new Color(1f, 0.42f, 0.42f, 1f);
+        difficultySummary.text = "ERRO: " + message;
+    }
+
     private void Initialize(
         PuzzleDifficultyProfile[] difficulties,
         PuzzleDifficultyProfile initialDifficulty,
         PuzzleCutStyle initialStyle,
         Texture2D previewTexture,
+        PuzzleConfig config,
+        PuzzleProgressData progress,
         Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> onConfirmed)
     {
         selectedStyle = initialStyle;
         confirmed = onConfirmed;
         this.previewTexture = previewTexture;
+        this.config = config;
+        this.progress = progress;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null)
             throw new InvalidOperationException("Unity built-in font 'LegacyRuntime.ttf' is unavailable.");
@@ -270,11 +303,15 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         checkImage.canvasRenderer.SetAlpha(0f);
         toggle.graphic = checkImage;
 
+        bool unlocked = progress.IsDifficultyUnlocked(config, profile);
+        string label = unlocked
+            ? profile.DisplayName
+            : $"{profile.DisplayName} • BLOQUEADO {profile.RequiredUniqueCompletions}";
         CreateText(
             "Label",
             cardObject.transform,
-            profile.DisplayName,
-            18,
+            label,
+            unlocked ? 18 : 13,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
@@ -288,6 +325,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             background.color = isOn ? CardSelectedColor : CardColor;
             if (isOn) ApplyDifficulty(profile, profile.DefaultCutStyle);
         });
+        toggle.interactable = unlocked;
         toggle.SetIsOnWithoutNotify(false);
         return toggle;
     }
@@ -327,11 +365,15 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         checkImage.canvasRenderer.SetAlpha(0f);
         toggle.graphic = checkImage;
 
+        bool unlocked = progress.IsStyleUnlocked(config, style);
+        string label = unlocked
+            ? LabelFor(style)
+            : $"{LabelFor(style)} • BLOQUEADO {config.GetStyleRequirement(style)}";
         CreateText(
             "Label",
             cardObject.transform,
-            LabelFor(style),
-            style == PuzzleCutStyle.FullyRandom ? 12 : 16,
+            label,
+            style == PuzzleCutStyle.FullyRandom ? 12 : unlocked ? 16 : 12,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
@@ -349,6 +391,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             selectedStyle = optionStyle;
             UpdatePreview(optionStyle);
         });
+        toggle.interactable = unlocked;
         toggle.SetIsOnWithoutNotify(false);
         styleOptions.Add(style, toggle);
         return toggle;
@@ -366,19 +409,24 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             throw new InvalidOperationException("Difficulty summary is missing.");
 
         selectedDifficulty = profile;
+        difficultySummary.color = MutedTextColor;
         difficultySummary.text = $"{profile.Description}  {profile.BuildRuleSummary()}";
 
         foreach (KeyValuePair<PuzzleCutStyle, Toggle> option in styleOptions)
         {
             bool allowed = profile.AllowsStyle(option.Key);
+            bool unlocked = progress.IsStyleUnlocked(config, option.Key);
             option.Value.SetIsOnWithoutNotify(false);
             option.Value.GetComponent<Image>().color = CardColor;
             option.Value.gameObject.SetActive(allowed);
+            option.Value.interactable = unlocked;
         }
 
         if (!profile.AllowsStyle(preferredStyle))
             throw new InvalidOperationException(
                 $"Cut style {preferredStyle} is not allowed by {profile.DisplayName}.");
+        if (!progress.IsStyleUnlocked(config, preferredStyle))
+            throw new InvalidOperationException($"Cut style {preferredStyle} is locked.");
         if (!styleOptions.TryGetValue(preferredStyle, out Toggle targetToggle))
             throw new InvalidOperationException(
                 $"No UI option exists for cut style {preferredStyle}.");
@@ -539,6 +587,11 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         confirmButton.interactable = false;
         if (selectedDifficulty == null)
             throw new InvalidOperationException("Difficulty selection is missing.");
+        if (!progress.IsDifficultyUnlocked(config, selectedDifficulty))
+            throw new InvalidOperationException(
+                $"Difficulty {selectedDifficulty.DisplayName} is locked.");
+        if (!progress.IsStyleUnlocked(config, selectedStyle))
+            throw new InvalidOperationException($"Cut style {selectedStyle} is locked.");
 
         if (confirmed(selectedDifficulty, selectedStyle)) Close();
         else confirmButton.interactable = true;

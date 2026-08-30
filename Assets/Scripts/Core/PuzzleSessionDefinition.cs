@@ -7,6 +7,7 @@ public sealed class PuzzleSessionDefinition
         PuzzleDifficultyProfile difficulty,
         PuzzleLayout layout,
         PuzzleCutStyle cutStyle,
+        string imageId,
         Texture2D texture,
         int cutSeed,
         int traySeed)
@@ -14,6 +15,9 @@ public sealed class PuzzleSessionDefinition
         Difficulty = difficulty != null ? difficulty : throw new ArgumentNullException(nameof(difficulty));
         Layout = layout;
         CutStyle = cutStyle;
+        ImageId = !string.IsNullOrWhiteSpace(imageId)
+            ? imageId
+            : throw new ArgumentException("Image id is required.", nameof(imageId));
         Texture = texture != null ? texture : throw new ArgumentNullException(nameof(texture));
         CutSeed = cutSeed;
         TraySeed = traySeed;
@@ -27,6 +31,8 @@ public sealed class PuzzleSessionDefinition
     public PuzzleLayout Layout { get; }
 
     public PuzzleCutStyle CutStyle { get; }
+
+    public string ImageId { get; }
 
     public Texture2D Texture { get; }
 
@@ -57,6 +63,12 @@ public sealed class PuzzleSessionDefinition
         if (!Difficulty.AllowsStyle(CutStyle))
         {
             error = $"cut style {CutStyle} is not allowed by {Difficulty.DisplayName}";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(ImageId))
+        {
+            error = "puzzle image id is missing";
             return false;
         }
 

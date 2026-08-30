@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -11,9 +12,15 @@ public class PuzzleController : MonoBehaviour
     [SerializeField] private float winDelay = 0.35f;
 
     private GameInput input;
+    private PuzzleContentSelectionMenu contentMenu;
     private PuzzleCutSelectionMenu selectionMenu;
+    private PuzzleImageDefinition selectedImage;
     private Texture2D puzzleTexture;
     private PuzzleSessionDefinition currentSession;
+    private PuzzleProgressStore progressStore;
+    private PuzzleProgressData progress;
+    private PuzzleDifficultyProfile pendingDifficulty;
+    private PuzzleCutStyle pendingStyle;
     private readonly PuzzleSessionMetrics metrics = new PuzzleSessionMetrics();
     private readonly PuzzleHintController hints = new PuzzleHintController();
     private PuzzleHud hud;
@@ -22,12 +29,16 @@ public class PuzzleController : MonoBehaviour
 
     private void Awake()
     {
+        if (builder == null || dragLayer == null || menu == null)
+            throw new InvalidOperationException("PuzzleController scene references are incomplete.");
+
         input = new GameInput();
         input.PauseToggled += TogglePause;
         input.RotationRequested += RotateHeldPiece;
         menu.Opened += CancelDrag;
         menu.RetryRequested += RetryCurrentSession;
         menu.OptionsRequested += ReturnToOptions;
+        menu.RepeatSeedRequested += RepeatCurrentSession;
     }
 
     private void Start()
@@ -52,20 +63,27 @@ public class PuzzleController : MonoBehaviour
 
         try
         {
-            puzzleTexture = config.PickImage();
-            PuzzleDifficultyProfile difficulty = config.DefaultDifficulty;
-            ShowOptions(difficulty, difficulty.DefaultCutStyle);
+            progressStore = new PuzzleProgressStore();
+            progress = progressStore.LoadOrCreate(config);
+            PuzzleDifficultyProfile difficulty =
+                config.GetDifficulty(progress.LastSelectedDifficulty);
+            ShowContentSelection(difficulty, progress.LastSelectedCutStyle);
         }
-        catch (System.Exception exception)
+        catch (Exception exception)
         {
-            Debug.LogError($"PuzzleController: cut selection could not be created: {exception.Message}", this);
+            Debug.LogError(
+                $"PuzzleController: progress initialization failed: {exception.Message}",
+                this);
+            menu.ShowFailure(
+                "ERRO AO CARREGAR",
+                "O progresso salvo é inválido e o jogo não criou dados substitutos.\n\n" +
+                exception.Message);
         }
     }
 
     private void Update()
     {
-        if (!started) return;
-        if (transitioning || menu.IsOpen) return;
+        if (!started || transitioning || menu.IsOpen) return;
 
         metrics.Tick(Time.unscaledDeltaTime);
         hints.Tick(Time.unscaledDeltaTime);
@@ -77,6 +95,7 @@ public class PuzzleController : MonoBehaviour
         menu.Opened -= CancelDrag;
         menu.RetryRequested -= RetryCurrentSession;
         menu.OptionsRequested -= ReturnToOptions;
+        menu.RepeatSeedRequested -= RepeatCurrentSession;
         if (input != null)
         {
             input.PauseToggled -= TogglePause;
@@ -86,14 +105,67 @@ public class PuzzleController : MonoBehaviour
         if (hud != null) hud.Close();
     }
 
+    private void ShowContentSelection(
+        PuzzleDifficultyProfile preferredDifficulty,
+        PuzzleCutStyle preferredStyle)
+    {
+        if (contentMenu != null || selectionMenu != null)
+            throw new InvalidOperationException("A puzzle selection menu is already open.");
+        if (progress == null)
+            throw new InvalidOperationException("Puzzle progress is not loaded.");
+        if (!progress.IsDifficultyUnlocked(config, preferredDifficulty))
+            throw new InvalidOperationException(
+                $"Preferred difficulty {preferredDifficulty.DisplayName} is locked.");
+        if (!preferredDifficulty.AllowsStyle(preferredStyle) ||
+            !progress.IsStyleUnlocked(config, preferredStyle))
+            throw new InvalidOperationException(
+                $"Preferred cut style {preferredStyle} is unavailable.");
+
+        pendingDifficulty = preferredDifficulty;
+        pendingStyle = preferredStyle;
+        contentMenu = PuzzleContentSelectionMenu.Show(
+            selectionRoot,
+            config,
+            progress,
+            progress.LastSelectedImageId,
+            SelectContent);
+    }
+
+    private bool SelectContent(PuzzleImageDefinition image)
+    {
+        if (image == null) throw new ArgumentNullException(nameof(image));
+        if (contentMenu == null)
+            throw new InvalidOperationException("Content selection menu is not open.");
+
+        try
+        {
+            Texture2D texture = config.LoadImage(image);
+            progress.SelectImage(config, image.Id);
+            progressStore.Save(progress, config);
+            selectedImage = image;
+            puzzleTexture = texture;
+            ShowOptions(pendingDifficulty, pendingStyle);
+            contentMenu = null;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError(
+                $"PuzzleController: image selection failed: {exception.Message}",
+                this);
+            contentMenu.ShowError(exception.Message);
+            return false;
+        }
+    }
+
     private void ShowOptions(
         PuzzleDifficultyProfile initialDifficulty,
         PuzzleCutStyle initialStyle)
     {
         if (selectionMenu != null)
-            throw new System.InvalidOperationException("The puzzle options menu is already open.");
-        if (puzzleTexture == null)
-            throw new System.InvalidOperationException("The selected puzzle texture is missing.");
+            throw new InvalidOperationException("The puzzle options menu is already open.");
+        if (selectedImage == null || puzzleTexture == null)
+            throw new InvalidOperationException("The selected puzzle image is missing.");
 
         selectionMenu = PuzzleCutSelectionMenu.Show(
             selectionRoot,
@@ -101,6 +173,8 @@ public class PuzzleController : MonoBehaviour
             initialDifficulty,
             initialStyle,
             puzzleTexture,
+            config,
+            progress,
             StartPuzzle);
     }
 
@@ -109,25 +183,48 @@ public class PuzzleController : MonoBehaviour
         PuzzleCutStyle cutStyle)
     {
         if (started)
-            throw new System.InvalidOperationException("The puzzle has already started.");
+            throw new InvalidOperationException("The puzzle has already started.");
         if (transitioning)
-            throw new System.InvalidOperationException("A puzzle transition is already running.");
+            throw new InvalidOperationException("A puzzle transition is already running.");
+        if (selectedImage == null || puzzleTexture == null)
+            throw new InvalidOperationException("The selected puzzle image is missing.");
+        if (!progress.IsDifficultyUnlocked(config, difficulty))
+            throw new InvalidOperationException(
+                $"Difficulty {difficulty.DisplayName} is locked.");
+        if (!progress.IsStyleUnlocked(config, cutStyle))
+            throw new InvalidOperationException($"Cut style {cutStyle} is locked.");
 
-        if (puzzleTexture == null)
-            throw new System.InvalidOperationException("The selected puzzle texture is missing.");
+        string progressSnapshot = PuzzleProgressSerializer.Serialize(progress, config);
+        try
+        {
+            var session = new PuzzleSessionDefinition(
+                difficulty,
+                difficulty.PickLayout(),
+                cutStyle,
+                selectedImage.Id,
+                puzzleTexture,
+                config.CreateCutSeed(),
+                config.CreateTraySeed());
+            if (!BuildSession(session))
+                throw new InvalidOperationException("The puzzle board could not be built.");
 
-        var session = new PuzzleSessionDefinition(
-            difficulty,
-            difficulty.PickLayout(),
-            cutStyle,
-            puzzleTexture,
-            config.CreateCutSeed(),
-            config.CreateTraySeed());
-        if (!BuildSession(session)) return false;
-
-        currentSession = session;
-        selectionMenu = null;
-        return true;
+            progress.SelectRules(config, difficulty, cutStyle);
+            progressStore.Save(progress, config);
+            currentSession = session;
+            selectionMenu = null;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            progress = PuzzleProgressSerializer.Deserialize(progressSnapshot, config);
+            builder.ClearBoard();
+            CloseSessionUi();
+            Debug.LogError(
+                $"PuzzleController: session could not start: {exception.Message}",
+                this);
+            selectionMenu.ShowError(exception.Message);
+            return false;
+        }
     }
 
     private bool BuildSession(PuzzleSessionDefinition session)
@@ -161,7 +258,7 @@ public class PuzzleController : MonoBehaviour
             started = true;
             return true;
         }
-        catch (System.Exception exception)
+        catch (Exception exception)
         {
             builder.ClearBoard();
             CloseSessionUi();
@@ -179,22 +276,34 @@ public class PuzzleController : MonoBehaviour
 
     private void RetryCurrentSession()
     {
-        if (!started || currentSession == null)
-            throw new System.InvalidOperationException("There is no active puzzle session to retry.");
+        RequireActiveSession("retry");
         BeginTransition(RestartWithDifferentImage());
+    }
+
+    private void RepeatCurrentSession()
+    {
+        RequireActiveSession("repeat");
+        BeginTransition(RestartExactSession());
     }
 
     private void ReturnToOptions()
     {
+        RequireActiveSession("leave");
+        BeginTransition(ClearThenShowContent());
+    }
+
+    private void RequireActiveSession(string action)
+    {
         if (!started || currentSession == null)
-            throw new System.InvalidOperationException("There is no active puzzle session to leave.");
-        BeginTransition(ClearThenShowOptions());
+            throw new InvalidOperationException(
+                $"There is no active puzzle session to {action}.");
     }
 
     private void BeginTransition(IEnumerator routine)
     {
+        if (routine == null) throw new ArgumentNullException(nameof(routine));
         if (transitioning)
-            throw new System.InvalidOperationException("A puzzle transition is already running.");
+            throw new InvalidOperationException("A puzzle transition is already running.");
 
         StopAllCoroutines();
         transitioning = true;
@@ -210,39 +319,86 @@ public class PuzzleController : MonoBehaviour
     {
         yield return null;
 
-        Texture2D nextTexture;
-        PuzzleSessionDefinition nextSession;
+        string progressSnapshot = PuzzleProgressSerializer.Serialize(progress, config);
         try
         {
-            nextTexture = config.PickDifferentImage(currentSession.Texture);
-            nextSession = new PuzzleSessionDefinition(
+            PuzzleImageDefinition nextImage =
+                config.PickDifferentUnlockedImage(currentSession.ImageId, progress);
+            Texture2D nextTexture = config.LoadImage(nextImage);
+            var nextSession = new PuzzleSessionDefinition(
                 currentSession.Difficulty,
                 currentSession.Layout,
                 currentSession.CutStyle,
+                nextImage.Id,
                 nextTexture,
                 config.CreateCutSeed(),
                 config.CreateTraySeed());
+
+            progress.SelectImage(config, nextImage.Id);
+            progressStore.Save(progress, config);
+            if (!BuildSession(nextSession))
+                throw new InvalidOperationException("The retry board could not be built.");
+
+            selectedImage = nextImage;
+            currentSession = nextSession;
+            puzzleTexture = nextTexture;
+            transitioning = false;
         }
-        catch (System.Exception exception)
+        catch (Exception exception)
         {
-            Debug.LogError($"PuzzleController: retry could not create a new session: {exception.Message}", this);
+            Exception reportedException = exception;
+            try
+            {
+                progress = PuzzleProgressSerializer.Deserialize(progressSnapshot, config);
+                progressStore.Save(progress, config);
+            }
+            catch (Exception rollbackException)
+            {
+                reportedException = new AggregateException(
+                    "Retry failed and its progress transaction could not be rolled back.",
+                    exception,
+                    rollbackException);
+            }
+            Debug.LogError(
+                "PuzzleController: retry could not create a new session: " +
+                reportedException.Message,
+                this);
+            builder.ClearBoard();
             CloseSessionUi();
             transitioning = false;
-            yield break;
+            menu.ShowFailure(
+                "ERRO NO RETRY",
+                "A nova sessão não foi criada.\n\n" + reportedException.Message);
         }
-
-        if (!BuildSession(nextSession))
-        {
-            transitioning = false;
-            yield break;
-        }
-
-        currentSession = nextSession;
-        puzzleTexture = nextTexture;
-        transitioning = false;
     }
 
-    private IEnumerator ClearThenShowOptions()
+    private IEnumerator RestartExactSession()
+    {
+        yield return null;
+
+        try
+        {
+            if (!BuildSession(currentSession))
+                throw new InvalidOperationException("The repeated board could not be built.");
+
+            selectedImage = config.GetImage(currentSession.ImageId);
+            puzzleTexture = currentSession.Texture;
+            transitioning = false;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError(
+                $"PuzzleController: exact replay failed: {exception.Message}",
+                this);
+            CloseSessionUi();
+            transitioning = false;
+            menu.ShowFailure(
+                "ERRO NA REPETIÇÃO",
+                "A sessão com a mesma seed não foi criada.\n\n" + exception.Message);
+        }
+    }
+
+    private IEnumerator ClearThenShowContent()
     {
         yield return null;
 
@@ -254,12 +410,12 @@ public class PuzzleController : MonoBehaviour
             hud = null;
         }
         transitioning = false;
-        ShowOptions(difficulty, cutStyle);
+        ShowContentSelection(difficulty, cutStyle);
     }
 
     private void OnSlotFilled(Slot slot)
     {
-        if (slot == null) throw new System.ArgumentNullException(nameof(slot));
+        if (slot == null) throw new ArgumentNullException(nameof(slot));
         metrics.RecordCorrectPlacement();
         hud.Refresh(metrics, currentSession.Difficulty, hints);
         if (metrics.IsComplete) StartCoroutine(CelebrateThenFinish());
@@ -274,7 +430,7 @@ public class PuzzleController : MonoBehaviour
         {
             PuzzleDropFailure.WrongSlot => "Esta peça pertence a outra região.",
             PuzzleDropFailure.WrongRotation => "Posição correta: ajuste a rotação.",
-            _ => throw new System.ArgumentOutOfRangeException(nameof(failure)),
+            _ => throw new ArgumentOutOfRangeException(nameof(failure)),
         });
     }
 
@@ -302,7 +458,7 @@ public class PuzzleController : MonoBehaviour
     private void UseHint()
     {
         if (!started || transitioning || menu.IsOpen)
-            throw new System.InvalidOperationException("Hints require an active unpaused session.");
+            throw new InvalidOperationException("Hints require an active unpaused session.");
         if (dragLayer.IsDragging)
         {
             hud.ShowStatus("Solte a peça antes de pedir uma dica.");
@@ -317,9 +473,28 @@ public class PuzzleController : MonoBehaviour
     private IEnumerator CelebrateThenFinish()
     {
         PuzzleScoreBreakdown score = PuzzleScoreCalculator.Calculate(currentSession, metrics);
+        string progressSnapshot = PuzzleProgressSerializer.Serialize(progress, config);
+        PuzzleProgressUpdate progressUpdate;
+        try
+        {
+            progressUpdate = progress.RecordCompletion(config, currentSession, metrics, score);
+            progressStore.Save(progress, config);
+        }
+        catch (Exception exception)
+        {
+            progress = PuzzleProgressSerializer.Deserialize(progressSnapshot, config);
+            Debug.LogError(
+                $"PuzzleController: completed result was not saved: {exception.Message}",
+                this);
+            menu.ShowFailure(
+                "ERRO AO SALVAR",
+                "O progresso não foi alterado.\n\n" + exception.Message);
+            yield break;
+        }
+
         float duration = builder.PlayCompletionWave();
         yield return new WaitForSecondsRealtime(duration + winDelay);
-        menu.ShowWin(score);
+        menu.ShowWin(score, progressUpdate);
     }
 
     private void CancelDrag()

@@ -178,20 +178,30 @@ public class PuzzlePiece : MonoBehaviour,
         if (placed || dragLayer.IsDragging) return;
         feedback.Stop();
         image.raycastTarget = false;
-        tray.BeginDrag(this);
+        bool trayReserved = false;
+        bool layerTaken = false;
+        bool attemptedBeforeDrag = attempted;
         try
         {
-            attempted = true;
+            tray.BeginDrag(this);
+            trayReserved = true;
             rotationAtDragStart = rotationDegrees;
-            tray.NotifyAttempted(this);
             dragLayer.Take(this, eventData.position);
+            layerTaken = true;
+            attempted = true;
+            tray.NotifyAttempted(this);
+            if (!gameObject.activeInHierarchy || rectTransform.parent != dragLayer.transform)
+                throw new InvalidOperationException(
+                    "The active piece left the drag layer while the pointer was held.");
             feedback.PlaySelected();
             moveStarted.Invoke();
         }
         catch
         {
+            attempted = attemptedBeforeDrag;
+            if (layerTaken && dragLayer.Held == this) dragLayer.Release();
             image.raycastTarget = true;
-            tray.ReturnToCell(this);
+            if (trayReserved) tray.ReturnToCell(this);
             throw;
         }
     }
@@ -203,11 +213,18 @@ public class PuzzlePiece : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (dragLayer.Held != this) return;
+        // DragLayer owns completion because EventSystem may end a UI drag while
+        // the physical pointer is still pressed after hierarchy/filter changes.
+    }
+
+    internal void FinishUnplacedDrag()
+    {
+        if (dragLayer.Held != this)
+            throw new InvalidOperationException(
+                "Only the piece held by DragLayer can finish an unplaced drag.");
 
         bool wasRejected = rejected;
         Vector3 origin = rectTransform.position;
-
         dragLayer.Release();
         ReturnToTray();
 

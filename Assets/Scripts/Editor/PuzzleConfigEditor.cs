@@ -8,7 +8,10 @@ public class PuzzleConfigEditor : Editor
     private SerializedProperty defaultDifficulty;
     private SerializedProperty useFixedCutSeed;
     private SerializedProperty cutSeed;
-    private SerializedProperty imagePaths;
+    private SerializedProperty defaultImageId;
+    private SerializedProperty importCollectionId;
+    private SerializedProperty collections;
+    private SerializedProperty cutStyleUnlocks;
 
     private void OnEnable()
     {
@@ -16,7 +19,10 @@ public class PuzzleConfigEditor : Editor
         defaultDifficulty = serializedObject.FindProperty("defaultDifficulty");
         useFixedCutSeed = serializedObject.FindProperty("useFixedCutSeed");
         cutSeed = serializedObject.FindProperty("cutSeed");
-        imagePaths = serializedObject.FindProperty("imagePaths");
+        defaultImageId = serializedObject.FindProperty("defaultImageId");
+        importCollectionId = serializedObject.FindProperty("importCollectionId");
+        collections = serializedObject.FindProperty("collections");
+        cutStyleUnlocks = serializedObject.FindProperty("cutStyleUnlocks");
     }
 
     public override void OnInspectorGUI()
@@ -32,41 +38,36 @@ public class PuzzleConfigEditor : Editor
         if (useFixedCutSeed.boolValue)
             EditorGUILayout.PropertyField(cutSeed, new GUIContent("Seed"));
 
-        EditorGUILayout.HelpBox(
-            "Layouts, cut depth, reference opacity, initial tilt and allowed formats are " +
-            "defined by the selected difficulty profile. Fully Random is restricted to Expert.",
-            MessageType.None);
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Progression", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(defaultImageId, new GUIContent("Default Image Id"));
+        EditorGUILayout.PropertyField(
+            importCollectionId,
+            new GUIContent("New Images Collection"));
+        EditorGUILayout.PropertyField(collections, new GUIContent("Collections"), true);
+        EditorGUILayout.PropertyField(cutStyleUnlocks, new GUIContent("Cut Style Unlocks"), true);
         serializedObject.ApplyModifiedProperties();
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Image Library", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Folder", PuzzleImageLibrary.Folder);
-
-        if (imagePaths.arraySize == 0)
-        {
-            EditorGUILayout.HelpBox(
-                $"No images found. Drop images into {PuzzleImageLibrary.Folder} — " +
-                "import settings and this list are updated automatically.",
-                MessageType.Warning);
-        }
-        else
-        {
-            EditorGUILayout.HelpBox($"{imagePaths.arraySize} image(s) available.", MessageType.Info);
-        }
-
-        using (new EditorGUI.DisabledScope(true))
-        {
-            EditorGUILayout.PropertyField(imagePaths, new GUIContent("Image Paths"), true);
-        }
-
-        EditorGUILayout.Space();
+        PuzzleConfig config = (PuzzleConfig)target;
+        EditorGUILayout.HelpBox(
+            $"{config.ImageCount} configured image(s). Every file in the folder must belong " +
+            "to exactly one explicit collection.",
+            MessageType.Info);
 
         if (GUILayout.Button("Rescan Folder", GUILayout.Height(24f)))
         {
             int reimported = PuzzleImageLibrary.NormalizeImportSettings();
-            PuzzleImageLibrary.SyncConfigs();
-            Debug.Log($"Puzzle image library rescanned: {imagePaths.arraySize} image(s), " +
-                      $"{reimported} reimported.", target);
+            int added = PuzzleImageLibrary.SynchronizeConfig(config);
+            if (!PuzzleImageLibrary.TryValidateAssignments(config, out string error))
+                Debug.LogError($"Puzzle image library validation failed: {error}.", config);
+            else
+                Debug.Log(
+                    $"Puzzle image library validated: {config.ImageCount} image(s), " +
+                    $"{added} added and {reimported} reimported.",
+                    config);
         }
     }
 }

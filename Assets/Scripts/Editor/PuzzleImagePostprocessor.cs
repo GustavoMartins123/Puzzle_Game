@@ -17,7 +17,8 @@ public class PuzzleImagePostprocessor : AssetPostprocessor
         if (!Touches(importedAssets) && !Touches(deletedAssets) &&
             !Touches(movedAssets) && !Touches(movedFromAssetPaths)) return;
 
-        PuzzleImageLibrary.SyncConfigs();
+        PuzzleImageLibrary.SynchronizeConfigs();
+        PuzzleImageLibrary.ValidateConfigs();
     }
 
     private static bool Touches(string[] paths)

@@ -12,6 +12,9 @@ public class GameMenu : MonoBehaviour
     private bool finished;
     private GameObject resultRoot;
     private Text resultDetails;
+    private GameObject repeatSeedRoot;
+    private GameObject retryAction;
+    private GameObject optionsAction;
 
     public event Action Opened;
 
@@ -19,24 +22,46 @@ public class GameMenu : MonoBehaviour
 
     public event Action OptionsRequested;
 
+    public event Action RepeatSeedRequested;
+
     public bool IsOpen => panel.activeSelf;
 
-    private void Awake() => panel.SetActive(false);
+    private void Awake()
+    {
+        if (panel == null || title == null)
+            throw new InvalidOperationException("Game menu references are incomplete.");
+        retryAction = RequireAction("RetryButton");
+        optionsAction = RequireAction("OptionsButton");
+        panel.SetActive(false);
+    }
 
     public void TogglePause()
     {
         if (finished) return;
         if (IsOpen) Close();
-        else Open(pauseLabel, false);
+        else Open(pauseLabel, false, false);
     }
 
-    public void ShowWin(PuzzleScoreBreakdown score)
+    public void ShowWin(PuzzleScoreBreakdown score, PuzzleProgressUpdate progressUpdate)
     {
         if (score == null) throw new ArgumentNullException(nameof(score));
+        if (progressUpdate == null) throw new ArgumentNullException(nameof(progressUpdate));
         finished = true;
         EnsureResultView();
-        resultDetails.text = score.BuildDetails();
-        Open(winLabel, true);
+        resultDetails.text = score.BuildDetails() + "\n\n" + progressUpdate.BuildSummary();
+        Open(winLabel, true, true);
+    }
+
+    public void ShowFailure(string label, string details)
+    {
+        if (string.IsNullOrWhiteSpace(label))
+            throw new ArgumentException("Failure label is required.", nameof(label));
+        if (string.IsNullOrWhiteSpace(details))
+            throw new ArgumentException("Failure details are required.", nameof(details));
+        finished = true;
+        EnsureResultView();
+        resultDetails.text = details;
+        Open(label, true, false, false);
     }
 
     public void Retry()
@@ -51,6 +76,14 @@ public class GameMenu : MonoBehaviour
         OptionsRequested?.Invoke();
     }
 
+    public void RepeatSamePuzzle()
+    {
+        if (!finished)
+            throw new InvalidOperationException("Exact replay is available only after completion.");
+        ResetAndClose();
+        RepeatSeedRequested?.Invoke();
+    }
+
     public void Quit()
     {
 #if UNITY_EDITOR
@@ -60,12 +93,19 @@ public class GameMenu : MonoBehaviour
 #endif
     }
 
-    private void Open(string label, bool showResult)
+    private void Open(
+        string label,
+        bool showResult,
+        bool showRepeatSeed,
+        bool showStandardActions = true)
     {
         title.text = label;
         if (showResult && resultRoot == null)
             throw new InvalidOperationException("Result view is missing.");
         if (resultRoot != null) resultRoot.SetActive(showResult);
+        if (repeatSeedRoot != null) repeatSeedRoot.SetActive(showRepeatSeed);
+        retryAction.SetActive(showStandardActions);
+        optionsAction.SetActive(showStandardActions);
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
         Time.timeScale = 0f;
@@ -82,7 +122,18 @@ public class GameMenu : MonoBehaviour
     {
         finished = false;
         if (resultRoot != null) resultRoot.SetActive(false);
+        if (repeatSeedRoot != null) repeatSeedRoot.SetActive(false);
+        retryAction.SetActive(true);
+        optionsAction.SetActive(true);
         Close();
+    }
+
+    private GameObject RequireAction(string objectName)
+    {
+        Transform action = panel.transform.Find(objectName);
+        if (action == null)
+            throw new InvalidOperationException($"Game menu action '{objectName}' is missing.");
+        return action.gameObject;
     }
 
     private void EnsureResultView()
@@ -122,5 +173,49 @@ public class GameMenu : MonoBehaviour
         resultDetails.alignByGeometry = true;
         resultDetails.raycastTarget = false;
         resultRoot.SetActive(false);
+
+        repeatSeedRoot = new GameObject("RepeatSeedButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        repeatSeedRoot.layer = panel.layer;
+        RectTransform repeatRect = (RectTransform)repeatSeedRoot.transform;
+        repeatRect.SetParent(panel.transform, false);
+        repeatRect.anchorMin = new Vector2(0.396f, 0.10f);
+        repeatRect.anchorMax = new Vector2(0.604f, 0.22f);
+        repeatRect.offsetMin = Vector2.zero;
+        repeatRect.offsetMax = Vector2.zero;
+        Image repeatImage = repeatSeedRoot.GetComponent<Image>();
+        repeatImage.color = Color.white;
+        Button repeatButton = repeatSeedRoot.GetComponent<Button>();
+        repeatButton.targetGraphic = repeatImage;
+        repeatButton.navigation = new Navigation { mode = Navigation.Mode.None };
+        repeatButton.colors = new ColorBlock
+        {
+            normalColor = new Color(0.12f, 0.65f, 0.56f, 1f),
+            highlightedColor = new Color(0.18f, 0.82f, 0.7f, 1f),
+            pressedColor = new Color(0.08f, 0.48f, 0.42f, 1f),
+            selectedColor = new Color(0.18f, 0.82f, 0.7f, 1f),
+            disabledColor = new Color(0.2f, 0.28f, 0.3f, 0.65f),
+            colorMultiplier = 1f,
+            fadeDuration = 0.1f,
+        };
+        repeatButton.onClick.AddListener(RepeatSamePuzzle);
+
+        GameObject labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+        labelObject.layer = panel.layer;
+        RectTransform labelRect = (RectTransform)labelObject.transform;
+        labelRect.SetParent(repeatRect, false);
+        labelRect.anchorMin = Vector2.zero;
+        labelRect.anchorMax = Vector2.one;
+        labelRect.offsetMin = Vector2.zero;
+        labelRect.offsetMax = Vector2.zero;
+        Text label = labelObject.GetComponent<Text>();
+        label.font = font;
+        label.text = "REPETIR MESMA IMAGEM E SEED";
+        label.fontSize = 16;
+        label.fontStyle = FontStyle.Bold;
+        label.color = Color.white;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.alignByGeometry = true;
+        label.raycastTarget = false;
+        repeatSeedRoot.SetActive(false);
     }
 }

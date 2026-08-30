@@ -20,7 +20,7 @@ MonoBehaviour:
     cellSize: 200
   - divisions: 4
     cellSize: 150
-  defaultCutStyle: 10
+  defaultCutStyle: 7
   allowedCutStyles:
   - 0
   - 1
@@ -40,6 +40,7 @@ MonoBehaviour:
   hintAllowance: 2
   maximumHints: 3
   hintCooldown: 10
+  requiredUniqueCompletions: 4
   rotationEnabled: 0
   rotationStepDegrees: 0
   rotationToleranceDegrees: 0

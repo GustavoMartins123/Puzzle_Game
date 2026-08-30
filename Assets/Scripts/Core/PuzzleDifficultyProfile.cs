@@ -38,6 +38,7 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     [SerializeField] private PuzzleHintAllowance hintAllowance = PuzzleHintAllowance.Limited;
     [SerializeField, Min(0)] private int maximumHints = 3;
     [SerializeField, Min(0f)] private float hintCooldown = 10f;
+    [SerializeField, Min(0)] private int requiredUniqueCompletions;
     [SerializeField] private bool rotationEnabled;
     [SerializeField, Min(0f)] private float rotationStepDegrees;
     [SerializeField, Min(0f)] private float rotationToleranceDegrees;
@@ -65,6 +66,8 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     public int MaximumHints => maximumHints;
 
     public float HintCooldown => hintCooldown;
+
+    public int RequiredUniqueCompletions => requiredUniqueCompletions;
 
     public bool RotationEnabled => rotationEnabled;
 
@@ -201,6 +204,12 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
         if (hintAllowance == PuzzleHintAllowance.Disabled && hintCooldown != 0f)
         {
             error = "disabled hints require a zero cooldown";
+            return false;
+        }
+
+        if (requiredUniqueCompletions < 0)
+        {
+            error = "difficulty unlock requirement cannot be negative";
             return false;
         }
 

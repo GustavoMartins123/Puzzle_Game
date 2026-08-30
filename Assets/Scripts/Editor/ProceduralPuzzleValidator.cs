@@ -33,9 +33,11 @@ public static class ProceduralPuzzleValidator
         }
 
         ValidateSelectionUi();
+        ValidateContentSelectionUi();
         ValidateSessionDefinitions();
         ValidateSessionMetrics();
         ValidatePhaseFourRules();
+        ValidatePhaseFiveProgression();
         ValidateTrayLayouts();
         ValidateProceduralPrefabs();
         ValidateGameScene();
@@ -44,8 +46,8 @@ public static class ProceduralPuzzleValidator
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
             $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
             "retry image rotation, session metrics, deterministic scoring, optional piece " +
-            "rotation, geometric tray filters, selection UI, responsive trays, prefabs, and " +
-            "scene are valid.");
+            "rotation, geometric tray filters, content selection, versioned progression, " +
+            "transactional persistence, responsive trays, prefabs, and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -81,6 +83,7 @@ public static class ProceduralPuzzleValidator
                             profile,
                             layout,
                             style,
+                            config.DefaultImageId,
                             texture,
                             cutSeed,
                             traySeed);
@@ -89,7 +92,8 @@ public static class ProceduralPuzzleValidator
                             throw new InvalidOperationException(
                                 $"Valid session was rejected: {sessionError}.");
                         if (session.Difficulty != profile || !profile.ContainsLayout(session.Layout) ||
-                            session.CutStyle != style || session.Texture != texture ||
+                            session.CutStyle != style || session.ImageId != config.DefaultImageId ||
+                            session.Texture != texture ||
                             session.CutSeed != cutSeed || session.TraySeed != traySeed)
                             throw new InvalidOperationException(
                                 "Puzzle session did not retain its exact immutable definition.");
@@ -97,9 +101,11 @@ public static class ProceduralPuzzleValidator
                 }
             }
 
-            Texture2D initialImage = config.PickImage();
-            Texture2D retryImage = config.PickDifferentImage(initialImage);
-            if (retryImage == initialImage)
+            PuzzleProgressData progress = PuzzleProgressData.CreateNew(config);
+            PuzzleImageDefinition initialImage = config.GetImage(config.DefaultImageId);
+            PuzzleImageDefinition retryImage =
+                config.PickDifferentUnlockedImage(initialImage.Id, progress);
+            if (retryImage.Id == initialImage.Id)
                 throw new InvalidOperationException(
                     "Retry image selection returned the current image.");
         }
@@ -174,6 +180,7 @@ public static class ProceduralPuzzleValidator
                 rotationProfile,
                 rotationProfile.Layouts[0],
                 rotationProfile.DefaultCutStyle,
+                config.DefaultImageId,
                 texture,
                 7001,
                 7002);
@@ -209,6 +216,160 @@ public static class ProceduralPuzzleValidator
         {
             UnityEngine.Object.DestroyImmediate(texture);
         }
+    }
+
+    private static void ValidatePhaseFiveProgression()
+    {
+        PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+            "Assets/Settings/PuzzleConfig.asset");
+        if (config == null)
+            throw new InvalidOperationException(
+                "Phase five requires the puzzle configuration asset.");
+        if (!config.TryValidate(out string configError))
+            throw new InvalidOperationException(
+                $"Phase five requires a valid configuration: {configError}.");
+        if (!PuzzleImageLibrary.TryValidateAssignments(config, out string assignmentError))
+            throw new InvalidOperationException(
+                $"Phase five image collections are invalid: {assignmentError}.");
+        if (PuzzleImageLibrary.SynchronizeConfig(config) != 0)
+            throw new InvalidOperationException(
+                "Phase five validation found unsynchronized puzzle images.");
+
+        for (int collectionIndex = 0; collectionIndex < config.Collections.Count; collectionIndex++)
+            for (int imageIndex = 0; imageIndex < config.Collections[collectionIndex].Images.Count; imageIndex++)
+                config.LoadImage(config.Collections[collectionIndex].Images[imageIndex]);
+
+        PuzzleProgressData progress = PuzzleProgressData.CreateNew(config);
+        if (progress.Schema != PuzzleProgressData.CurrentSchema ||
+            progress.Version != PuzzleProgressData.CurrentVersion ||
+            progress.UniqueCompletedImages != 0 ||
+            progress.UnlockedImageIds.Count < 2 ||
+            progress.LastSelectedImageId != config.DefaultImageId)
+            throw new InvalidOperationException("New progress has an invalid canonical state.");
+
+        while (progress.UniqueCompletedImages < 12)
+        {
+            PuzzleImageDefinition nextImage = null;
+            for (int collectionIndex = 0;
+                 collectionIndex < config.Collections.Count && nextImage == null;
+                 collectionIndex++)
+            {
+                PuzzleCollectionDefinition collection = config.Collections[collectionIndex];
+                for (int imageIndex = 0; imageIndex < collection.Images.Count; imageIndex++)
+                {
+                    PuzzleImageDefinition candidate = collection.Images[imageIndex];
+                    if (!progress.IsImageUnlocked(candidate.Id) ||
+                        Contains(progress.CompletedImageIds, candidate.Id))
+                        continue;
+                    nextImage = candidate;
+                    break;
+                }
+            }
+
+            if (nextImage == null)
+                throw new InvalidOperationException(
+                    "Progression cannot reach twelve unique image completions.");
+            CompleteImageForProgressValidation(config, progress, nextImage);
+        }
+
+        PuzzleDifficultyProfile normal = config.GetDifficulty(PuzzleDifficulty.Normal);
+        PuzzleDifficultyProfile expert = config.GetDifficulty(PuzzleDifficulty.Expert);
+        if (!progress.IsDifficultyUnlocked(config, normal) ||
+            !progress.IsDifficultyUnlocked(config, expert) ||
+            !progress.IsStyleUnlocked(config, PuzzleCutStyle.FullyRandom))
+            throw new InvalidOperationException(
+                "Progression did not unlock its configured difficulties and formats.");
+        progress.SelectRules(config, expert, PuzzleCutStyle.FullyRandom);
+
+        string json = PuzzleProgressSerializer.Serialize(progress, config);
+        PuzzleProgressData roundTrip = PuzzleProgressSerializer.Deserialize(json, config);
+        if (roundTrip.UniqueCompletedImages != progress.UniqueCompletedImages ||
+            roundTrip.BestResults.Count != progress.BestResults.Count ||
+            roundTrip.UnlockedImageIds.Count != progress.UnlockedImageIds.Count ||
+            roundTrip.LastSelectedDifficulty != PuzzleDifficulty.Expert ||
+            roundTrip.LastSelectedCutStyle != PuzzleCutStyle.FullyRandom)
+            throw new InvalidOperationException("Progress JSON round-trip changed persisted data.");
+
+        string invalidJson = json.Replace("\"version\": 1", "\"version\": 999");
+        if (invalidJson == json)
+            throw new InvalidOperationException("Progress version could not be changed for validation.");
+        bool invalidVersionRejected = false;
+        try
+        {
+            PuzzleProgressSerializer.Deserialize(invalidJson, config);
+        }
+        catch (InvalidOperationException)
+        {
+            invalidVersionRejected = true;
+        }
+        if (!invalidVersionRejected)
+            throw new InvalidOperationException("Unsupported progress version was accepted.");
+
+        string invalidSchemaJson = json.Replace(
+            PuzzleProgressData.CurrentSchema,
+            "unsupported-progress-schema");
+        if (invalidSchemaJson == json)
+            throw new InvalidOperationException("Progress schema could not be changed for validation.");
+        bool invalidSchemaRejected = false;
+        try
+        {
+            PuzzleProgressSerializer.Deserialize(invalidSchemaJson, config);
+        }
+        catch (InvalidOperationException)
+        {
+            invalidSchemaRejected = true;
+        }
+        if (!invalidSchemaRejected)
+            throw new InvalidOperationException("Unsupported progress schema was accepted.");
+
+        string validationKey =
+            "Puzzle.Validation." + Guid.NewGuid().ToString("N");
+        if (PlayerPrefs.HasKey(validationKey))
+            throw new InvalidOperationException(
+                $"Temporary PlayerPrefs key '{validationKey}' already exists.");
+        try
+        {
+            var store = new PuzzleProgressStore(validationKey);
+            store.Save(progress, config);
+            store.Save(progress, config);
+            PuzzleProgressData loaded = store.LoadOrCreate(config);
+            if (loaded.UniqueCompletedImages != progress.UniqueCompletedImages ||
+                loaded.BestResults.Count != progress.BestResults.Count)
+                throw new InvalidOperationException(
+                    "Transactional progress store changed persisted data.");
+        }
+        finally
+        {
+            PlayerPrefs.DeleteKey(validationKey);
+            PlayerPrefs.Save();
+        }
+    }
+
+    private static void CompleteImageForProgressValidation(
+        PuzzleConfig config,
+        PuzzleProgressData progress,
+        PuzzleImageDefinition image)
+    {
+        PuzzleDifficultyProfile profile = config.DefaultDifficulty;
+        PuzzleLayout layout = profile.Layouts[0];
+        var session = new PuzzleSessionDefinition(
+            profile,
+            layout,
+            profile.DefaultCutStyle,
+            image.Id,
+            config.LoadImage(image),
+            8101 + progress.UniqueCompletedImages,
+            9101 + progress.UniqueCompletedImages);
+        int totalPieces = layout.divisions * layout.divisions;
+        var metrics = new PuzzleSessionMetrics();
+        metrics.Begin(totalPieces);
+        metrics.Tick(totalPieces * 5f);
+        for (int i = 0; i < totalPieces; i++) metrics.RecordCorrectPlacement();
+        PuzzleScoreBreakdown score = PuzzleScoreCalculator.Calculate(session, metrics);
+        PuzzleProgressUpdate update =
+            progress.RecordCompletion(config, session, metrics, score);
+        if (update.Medal != PuzzleMedal.Gold)
+            throw new InvalidOperationException("Gold medal validation session received another medal.");
     }
 
     private static void ValidateTrayLayouts()
@@ -307,6 +468,7 @@ public static class ProceduralPuzzleValidator
                 throw new InvalidOperationException(
                     $"Puzzle configuration is invalid: {configError}.");
             PuzzleDifficultyProfile initialDifficulty = config.DefaultDifficulty;
+            PuzzleProgressData progress = PuzzleProgressData.CreateNew(config);
 
             PuzzleCutSelectionMenu menu = PuzzleCutSelectionMenu.Show(
                 (RectTransform)canvasObject.transform,
@@ -314,6 +476,8 @@ public static class ProceduralPuzzleValidator
                 initialDifficulty,
                 initialDifficulty.DefaultCutStyle,
                 previewTexture,
+                config,
+                progress,
                 (_, _) => true);
             Canvas.ForceUpdateCanvases();
 
@@ -368,6 +532,18 @@ public static class ProceduralPuzzleValidator
             for (int i = 0; i < difficultyCount; i++)
             {
                 PuzzleDifficultyProfile profile = config.DifficultyProfiles[i];
+                if (!progress.IsDifficultyUnlocked(config, profile))
+                {
+                    Toggle lockedToggle =
+                        difficulties.Find(profile.Difficulty.ToString())?.GetComponent<Toggle>();
+                    Text lockedLabel = lockedToggle?.transform.Find("Label")?.GetComponent<Text>();
+                    if (lockedToggle == null || lockedToggle.interactable || lockedLabel == null ||
+                        !lockedLabel.text.Contains("BLOQUEADO"))
+                        throw new InvalidOperationException(
+                            $"Locked difficulty {profile.DisplayName} is not visibly locked.");
+                    continue;
+                }
+
                 ValidateDifficultySelection(
                     difficulties,
                     options,
@@ -376,7 +552,9 @@ public static class ProceduralPuzzleValidator
                     previewTitle,
                     difficultySummary,
                     previewTexture,
-                    profile);
+                    profile,
+                    config,
+                    progress);
             }
 
             Transform randomCard = menu.transform.Find("Panel/Options/FullyRandom");
@@ -392,6 +570,91 @@ public static class ProceduralPuzzleValidator
         }
     }
 
+    private static void ValidateContentSelectionUi()
+    {
+        var canvasObject = new GameObject(
+            "PuzzleContentUiValidation",
+            typeof(RectTransform),
+            typeof(Canvas));
+
+        try
+        {
+            PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+                "Assets/Settings/PuzzleConfig.asset");
+            if (config == null)
+                throw new InvalidOperationException("Puzzle configuration is missing.");
+            PuzzleProgressData progress = PuzzleProgressData.CreateNew(config);
+            PuzzleContentSelectionMenu menu = PuzzleContentSelectionMenu.Show(
+                (RectTransform)canvasObject.transform,
+                config,
+                progress,
+                progress.LastSelectedImageId,
+                _ => true);
+            Canvas.ForceUpdateCanvases();
+
+            RectTransform panel = menu.transform.Find("Panel") as RectTransform;
+            Transform collections = menu.transform.Find("Panel/Collections");
+            Transform images = menu.transform.Find("Panel/Images/Viewport/Content");
+            RawImage preview =
+                menu.transform.Find("Panel/PreviewPanel/PreviewFrame/Image")?.GetComponent<RawImage>();
+            Text results =
+                menu.transform.Find("Panel/PreviewPanel/BestResults")?.GetComponent<Text>();
+            RectTransform previewFrame =
+                menu.transform.Find("Panel/PreviewPanel/PreviewFrame") as RectTransform;
+            RectTransform continueButton =
+                menu.transform.Find("Panel/Continue") as RectTransform;
+            if (panel == null || collections == null || images == null ||
+                preview == null || results == null || previewFrame == null ||
+                continueButton == null)
+                throw new InvalidOperationException("Content selection layout is incomplete.");
+            if (panel.rect.width > 1600f || panel.rect.height > 900f)
+                throw new InvalidOperationException(
+                    "Content selection panel exceeds the reference viewport.");
+            if (collections.childCount != config.Collections.Count)
+                throw new InvalidOperationException(
+                    "Content selection does not show every configured collection.");
+            if (preview.texture != config.LoadImage(config.GetImage(progress.LastSelectedImageId)))
+                throw new InvalidOperationException(
+                    "Content selection preview does not use the selected image.");
+            if (WorldRect(results.rectTransform).Overlaps(WorldRect(previewFrame)))
+                throw new InvalidOperationException(
+                    "Content selection results overlap the image preview.");
+            if (WorldRect(continueButton).Overlaps(WorldRect((RectTransform)collections)) ||
+                WorldRect(continueButton).Overlaps(
+                    WorldRect((RectTransform)images.parent.parent)) ||
+                WorldRect(continueButton).Overlaps(
+                    WorldRect((RectTransform)previewFrame.parent)))
+                throw new InvalidOperationException(
+                    "Content selection confirmation overlaps a content column.");
+
+            for (int i = 0; i < config.Collections.Count; i++)
+            {
+                PuzzleCollectionDefinition collection = config.Collections[i];
+                Button button = collections.Find(collection.Id)?.GetComponent<Button>();
+                bool unlocked = config.IsCollectionUnlocked(
+                    collection,
+                    progress.UniqueCompletedImages);
+                Text label = button?.transform.Find("Label")?.GetComponent<Text>();
+                if (button == null || button.interactable != unlocked || label == null)
+                    throw new InvalidOperationException(
+                        $"Collection {collection.DisplayName} has an invalid UI state.");
+                if (!unlocked && !label.text.Contains("BLOQUEADO"))
+                    throw new InvalidOperationException(
+                        $"Collection {collection.DisplayName} does not show its lock.");
+            }
+
+            Text[] texts = menu.GetComponentsInChildren<Text>(true);
+            for (int i = 0; i < texts.Length; i++)
+                if (texts[i].fontSize < 12 || !texts[i].alignByGeometry)
+                    throw new InvalidOperationException(
+                        $"Content UI text '{texts[i].name}' is not configured for crisp rendering.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(canvasObject);
+        }
+    }
+
     private static void ValidateDifficultySelection(
         Transform difficulties,
         Transform options,
@@ -400,7 +663,9 @@ public static class ProceduralPuzzleValidator
         Text previewTitle,
         Text difficultySummary,
         Texture2D previewTexture,
-        PuzzleDifficultyProfile profile)
+        PuzzleDifficultyProfile profile,
+        PuzzleConfig config,
+        PuzzleProgressData progress)
     {
         Transform difficultyOption = difficulties.Find(profile.Difficulty.ToString());
         Toggle difficultyToggle = difficultyOption?.GetComponent<Toggle>();
@@ -423,6 +688,12 @@ public static class ProceduralPuzzleValidator
                     $"Difficulty {profile.DisplayName} exposed an invalid option state for {style}.");
 
             if (!profile.AllowsStyle(style)) continue;
+            Toggle styleToggle = option.GetComponent<Toggle>();
+            bool unlocked = progress.IsStyleUnlocked(config, style);
+            if (styleToggle == null || styleToggle.interactable != unlocked)
+                throw new InvalidOperationException(
+                    $"Cut style {style} has an invalid unlock state.");
+            if (!unlocked) continue;
             ValidateSelectionStyle(
                 options,
                 preview,
@@ -509,6 +780,9 @@ public static class ProceduralPuzzleValidator
 
     private static void ValidateProceduralPrefabs()
     {
+        if (typeof(UnityEngine.EventSystems.IDropHandler).IsAssignableFrom(typeof(Slot)))
+            throw new InvalidOperationException(
+                "Slot must not finalize placement from EventSystem drop events.");
         ValidatePrefab<PuzzlePiece>("Assets/Prefabs/PuzzlePiece.prefab");
         ValidatePrefab<Slot>("Assets/Prefabs/Slot.prefab");
     }
@@ -618,6 +892,23 @@ public static class ProceduralPuzzleValidator
             default:
                 return 16;
         }
+    }
+
+    private static bool Contains(
+        System.Collections.Generic.IReadOnlyList<string> values,
+        string expected)
+    {
+        for (int i = 0; i < values.Count; i++)
+            if (values[i] == expected) return true;
+        return false;
+    }
+
+    private static Rect WorldRect(RectTransform rectTransform)
+    {
+        if (rectTransform == null) throw new ArgumentNullException(nameof(rectTransform));
+        var corners = new Vector3[4];
+        rectTransform.GetWorldCorners(corners);
+        return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
     }
 
     private static void ValidateBoard(

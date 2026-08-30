@@ -19,43 +19,229 @@ MonoBehaviour:
   defaultDifficulty: 0
   useFixedCutSeed: 0
   cutSeed: 1729
-  imagePaths:
-  - PuzzleImages/01_coral_reef
-  - PuzzleImages/02_koi_pond
-  - PuzzleImages/03_kelp_forest
-  - PuzzleImages/04_tide_pool
-  - PuzzleImages/05_night_festival
-  - PuzzleImages/06_floating_market
-  - PuzzleImages/07_warrior_portrait
-  - PuzzleImages/08_haunted_greenhouse
-  - PuzzleImages/09_abyssal_creature
-  - PuzzleImages/10_medieval_market
-  - PuzzleImages/11_illuminated_manuscript
-  - PuzzleImages/12_monster_bestiary
-  - PuzzleImages/13_monster_bestiary_alt
-  - PuzzleImages/14_sewer_abomination
-  - PuzzleImages/15_cozinha_madrugada
-  - PuzzleImages/16_criatura_canto
-  - PuzzleImages/17_banheiro_espelho
-  - PuzzleImages/18_fresta_porta
-  - PuzzleImages/19_tv_estatica
-  - PuzzleImages/20_debaixo_da_cama
-  - PuzzleImages/21_pessoa_errada_corredor
-  - PuzzleImages/22_elevador_fechando
-  - PuzzleImages/23_janela_decimo_andar
-  - PuzzleImages/24_escada_sem_fim
-  - PuzzleImages/25_tv_reflexo_sofa
-  - PuzzleImages/26_banheiro_duplo_reflexo
-  - PuzzleImages/27_corredor_branco_surreal
-  - PuzzleImages/28_kaiju_cidade_inundada
-  - PuzzleImages/29_bazar_especiarias
-  - PuzzleImages/30_ilha_quatro_biomas
-  - PuzzleImages/31_floresta_kirigami_3d
-  - PuzzleImages/32_rosacea_vitral_gotico
-  - PuzzleImages/33_metropole_cyberpunk_chuva
-  - PuzzleImages/34_biblioteca_arcana_alquimia
-  - PuzzleImages/35_cidade_mecanica_steampunk
-  - PuzzleImages/36_microcosmo_cogumelos_insetos
-  - PuzzleImages/37_vila_flutuante_ventos
-  - PuzzleImages/38_tapecaria_medieval_millefleurs
-  - PuzzleImages/39_mosaico_celestial_bizantino
+  defaultImageId: img_01
+  importCollectionId: mundos
+  collections:
+  - id: oceanos
+    displayName: OCEANOS
+    requiredUniqueCompletions: 0
+    images:
+    - id: img_01
+      displayName: Recife de Coral
+      resourcePath: PuzzleImages/01_coral_reef
+      requiredUniqueCompletions: 0
+    - id: img_02
+      displayName: Lago de Carpas
+      resourcePath: PuzzleImages/02_koi_pond
+      requiredUniqueCompletions: 0
+    - id: img_03
+      displayName: Floresta de Algas
+      resourcePath: PuzzleImages/03_kelp_forest
+      requiredUniqueCompletions: 0
+    - id: img_04
+      displayName: Piscina de Maré
+      resourcePath: PuzzleImages/04_tide_pool
+      requiredUniqueCompletions: 0
+  - id: aventuras
+    displayName: AVENTURAS
+    requiredUniqueCompletions: 2
+    images:
+    - id: img_05
+      displayName: Festival Noturno
+      resourcePath: PuzzleImages/05_night_festival
+      requiredUniqueCompletions: 2
+    - id: img_06
+      displayName: Mercado Flutuante
+      resourcePath: PuzzleImages/06_floating_market
+      requiredUniqueCompletions: 2
+    - id: img_07
+      displayName: Retrato do Guerreiro
+      resourcePath: PuzzleImages/07_warrior_portrait
+      requiredUniqueCompletions: 3
+    - id: img_08
+      displayName: Estufa Assombrada
+      resourcePath: PuzzleImages/08_haunted_greenhouse
+      requiredUniqueCompletions: 3
+    - id: img_09
+      displayName: Criatura Abissal
+      resourcePath: PuzzleImages/09_abyssal_creature
+      requiredUniqueCompletions: 4
+    - id: img_10
+      displayName: Mercado Medieval
+      resourcePath: PuzzleImages/10_medieval_market
+      requiredUniqueCompletions: 4
+    - id: img_11
+      displayName: Manuscrito Iluminado
+      resourcePath: PuzzleImages/11_illuminated_manuscript
+      requiredUniqueCompletions: 5
+    - id: img_12
+      displayName: Bestiário de Monstros
+      resourcePath: PuzzleImages/12_monster_bestiary
+      requiredUniqueCompletions: 5
+    - id: img_13
+      displayName: Bestiário Alternativo
+      resourcePath: PuzzleImages/13_monster_bestiary_alt
+      requiredUniqueCompletions: 6
+    - id: img_14
+      displayName: Abominação dos Esgotos
+      resourcePath: PuzzleImages/14_sewer_abomination
+      requiredUniqueCompletions: 6
+  - id: horror
+    displayName: HORROR
+    requiredUniqueCompletions: 6
+    images:
+    - id: img_15
+      displayName: Cozinha na Madrugada
+      resourcePath: PuzzleImages/15_cozinha_madrugada
+      requiredUniqueCompletions: 6
+    - id: img_16
+      displayName: Criatura no Canto
+      resourcePath: PuzzleImages/16_criatura_canto
+      requiredUniqueCompletions: 6
+    - id: img_17
+      displayName: Espelho do Banheiro
+      resourcePath: PuzzleImages/17_banheiro_espelho
+      requiredUniqueCompletions: 7
+    - id: img_18
+      displayName: Fresta da Porta
+      resourcePath: PuzzleImages/18_fresta_porta
+      requiredUniqueCompletions: 7
+    - id: img_19
+      displayName: TV com Estática
+      resourcePath: PuzzleImages/19_tv_estatica
+      requiredUniqueCompletions: 8
+    - id: img_20
+      displayName: Debaixo da Cama
+      resourcePath: PuzzleImages/20_debaixo_da_cama
+      requiredUniqueCompletions: 8
+    - id: img_21
+      displayName: Pessoa Errada no Corredor
+      resourcePath: PuzzleImages/21_pessoa_errada_corredor
+      requiredUniqueCompletions: 9
+    - id: img_22
+      displayName: Elevador Fechando
+      resourcePath: PuzzleImages/22_elevador_fechando
+      requiredUniqueCompletions: 9
+    - id: img_23
+      displayName: Janela do Décimo Andar
+      resourcePath: PuzzleImages/23_janela_decimo_andar
+      requiredUniqueCompletions: 10
+    - id: img_24
+      displayName: Escada sem Fim
+      resourcePath: PuzzleImages/24_escada_sem_fim
+      requiredUniqueCompletions: 10
+    - id: img_25
+      displayName: Reflexo no Sofá
+      resourcePath: PuzzleImages/25_tv_reflexo_sofa
+      requiredUniqueCompletions: 11
+    - id: img_26
+      displayName: Reflexo Duplo
+      resourcePath: PuzzleImages/26_banheiro_duplo_reflexo
+      requiredUniqueCompletions: 11
+    - id: img_27
+      displayName: Corredor Branco
+      resourcePath: PuzzleImages/27_corredor_branco_surreal
+      requiredUniqueCompletions: 12
+  - id: mundos
+    displayName: MUNDOS
+    requiredUniqueCompletions: 12
+    images:
+    - id: img_28
+      displayName: Kaiju na Cidade Inundada
+      resourcePath: PuzzleImages/28_kaiju_cidade_inundada
+      requiredUniqueCompletions: 12
+    - id: img_29
+      displayName: Bazar de Especiarias
+      resourcePath: PuzzleImages/29_bazar_especiarias
+      requiredUniqueCompletions: 12
+    - id: img_30
+      displayName: Ilha dos Quatro Biomas
+      resourcePath: PuzzleImages/30_ilha_quatro_biomas
+      requiredUniqueCompletions: 13
+    - id: img_31
+      displayName: Floresta Kirigami
+      resourcePath: PuzzleImages/31_floresta_kirigami_3d
+      requiredUniqueCompletions: 14
+    - id: img_32
+      displayName: Rosácea Gótica
+      resourcePath: PuzzleImages/32_rosacea_vitral_gotico
+      requiredUniqueCompletions: 15
+    - id: img_33
+      displayName: Metrópole Cyberpunk
+      resourcePath: PuzzleImages/33_metropole_cyberpunk_chuva
+      requiredUniqueCompletions: 16
+    - id: img_34
+      displayName: Biblioteca Arcana
+      resourcePath: PuzzleImages/34_biblioteca_arcana_alquimia
+      requiredUniqueCompletions: 17
+    - id: img_35
+      displayName: Cidade Steampunk
+      resourcePath: PuzzleImages/35_cidade_mecanica_steampunk
+      requiredUniqueCompletions: 18
+    - id: img_36
+      displayName: Microcosmo dos Cogumelos
+      resourcePath: PuzzleImages/36_microcosmo_cogumelos_insetos
+      requiredUniqueCompletions: 19
+    - id: img_37
+      displayName: Vila Flutuante
+      resourcePath: PuzzleImages/37_vila_flutuante_ventos
+      requiredUniqueCompletions: 20
+    - id: img_38
+      displayName: Tapeçaria Medieval
+      resourcePath: PuzzleImages/38_tapecaria_medieval_millefleurs
+      requiredUniqueCompletions: 21
+    - id: img_39
+      displayName: Mosaico Celestial
+      resourcePath: PuzzleImages/39_mosaico_celestial_bizantino
+      requiredUniqueCompletions: 22
+    - id: img_40
+      displayName: Estação Espacial na Nebulosa
+      resourcePath: PuzzleImages/40_estacao_espacial_nebulosa
+      requiredUniqueCompletions: 23
+    - id: img_41
+      displayName: Câmara Egípcia Dourada
+      resourcePath: PuzzleImages/41_camara_egipcia_dourada
+      requiredUniqueCompletions: 24
+    - id: img_42
+      displayName: Naufrágio Viking sob a Aurora
+      resourcePath: PuzzleImages/42_naufragio_viking_aurora
+      requiredUniqueCompletions: 25
+    - id: img_43
+      displayName: Mansão de Bonecas Vitoriana
+      resourcePath: PuzzleImages/43_mansao_bonecas_vitoriana
+      requiredUniqueCompletions: 26
+    - id: img_44
+      displayName: Jardim Zen no Outono
+      resourcePath: PuzzleImages/44_jardim_zen_outono
+      requiredUniqueCompletions: 27
+    - id: img_45
+      displayName: Caverna de Cristais Gigantes
+      resourcePath: PuzzleImages/45_caverna_cristais_gigantes
+      requiredUniqueCompletions: 28
+  cutStyleUnlocks:
+  - style: 0
+    requiredUniqueCompletions: 0
+  - style: 1
+    requiredUniqueCompletions: 0
+  - style: 2
+    requiredUniqueCompletions: 0
+  - style: 3
+    requiredUniqueCompletions: 0
+  - style: 4
+    requiredUniqueCompletions: 0
+  - style: 5
+    requiredUniqueCompletions: 2
+  - style: 6
+    requiredUniqueCompletions: 3
+  - style: 7
+    requiredUniqueCompletions: 4
+  - style: 8
+    requiredUniqueCompletions: 5
+  - style: 9
+    requiredUniqueCompletions: 6
+  - style: 10
+    requiredUniqueCompletions: 7
+  - style: 11
+    requiredUniqueCompletions: 9
+  - style: 12
+    requiredUniqueCompletions: 12
