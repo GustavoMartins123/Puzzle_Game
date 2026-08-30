@@ -4,18 +4,16 @@ using UnityEngine;
 [CustomEditor(typeof(PuzzleConfig))]
 public class PuzzleConfigEditor : Editor
 {
-    private SerializedProperty layouts;
-    private SerializedProperty cutStyle;
-    private SerializedProperty cutDepth;
+    private SerializedProperty difficultyProfiles;
+    private SerializedProperty defaultDifficulty;
     private SerializedProperty useFixedCutSeed;
     private SerializedProperty cutSeed;
     private SerializedProperty imagePaths;
 
     private void OnEnable()
     {
-        layouts = serializedObject.FindProperty("layouts");
-        cutStyle = serializedObject.FindProperty("cutStyle");
-        cutDepth = serializedObject.FindProperty("cutDepth");
+        difficultyProfiles = serializedObject.FindProperty("difficultyProfiles");
+        defaultDifficulty = serializedObject.FindProperty("defaultDifficulty");
         useFixedCutSeed = serializedObject.FindProperty("useFixedCutSeed");
         cutSeed = serializedObject.FindProperty("cutSeed");
         imagePaths = serializedObject.FindProperty("imagePaths");
@@ -24,19 +22,19 @@ public class PuzzleConfigEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        EditorGUILayout.PropertyField(layouts, true);
+        EditorGUILayout.LabelField("Difficulty", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(difficultyProfiles, new GUIContent("Profiles"), true);
+        EditorGUILayout.PropertyField(defaultDifficulty, new GUIContent("Default"));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Procedural Pieces", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(cutStyle, new GUIContent("Cut Style"));
-        EditorGUILayout.PropertyField(cutDepth, new GUIContent("Cut Depth"));
+        EditorGUILayout.LabelField("Session Seeds", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(useFixedCutSeed, new GUIContent("Use Fixed Seed"));
         if (useFixedCutSeed.boolValue)
             EditorGUILayout.PropertyField(cutSeed, new GUIContent("Seed"));
 
         EditorGUILayout.HelpBox(
-            "Fully Random chooses a different procedural edge family for every shared cut. " +
-            "Adjacent pieces always use the exact same complementary edge.",
+            "Layouts, cut depth, reference opacity, initial tilt and allowed formats are " +
+            "defined by the selected difficulty profile. Fully Random is restricted to Expert.",
             MessageType.None);
         serializedObject.ApplyModifiedProperties();
 

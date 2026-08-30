@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameMenu : MonoBehaviour
@@ -13,6 +12,10 @@ public class GameMenu : MonoBehaviour
     private bool finished;
 
     public event Action Opened;
+
+    public event Action RetryRequested;
+
+    public event Action OptionsRequested;
 
     public bool IsOpen => panel.activeSelf;
 
@@ -33,8 +36,14 @@ public class GameMenu : MonoBehaviour
 
     public void Retry()
     {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        ResetAndClose();
+        RetryRequested?.Invoke();
+    }
+
+    public void BackToOptions()
+    {
+        ResetAndClose();
+        OptionsRequested?.Invoke();
     }
 
     public void Quit()
@@ -58,5 +67,11 @@ public class GameMenu : MonoBehaviour
     {
         panel.SetActive(false);
         Time.timeScale = 1f;
+    }
+
+    private void ResetAndClose()
+    {
+        finished = false;
+        Close();
     }
 }

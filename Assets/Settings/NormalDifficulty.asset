@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b125a1f2538e4dff9c1843eb7010d8a1, type: 3}
+  m_Name: NormalDifficulty
+  m_EditorClassIdentifier:
+  difficulty: 1
+  displayName: NORMAL
+  description: Mais peças, todos os formatos fixos e referência moderada.
+  layouts:
+  - divisions: 3
+    cellSize: 200
+  - divisions: 4
+    cellSize: 150
+  defaultCutStyle: 10
+  allowedCutStyles:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  cutDepth: 0.22
+  referenceOpacity: 0.65
+  initialTilt: 8

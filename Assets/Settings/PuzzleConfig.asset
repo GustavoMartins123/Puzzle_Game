@@ -12,17 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6367200cdbdded0a55d002690cea12d, type: 3}
   m_Name: PuzzleConfig
   m_EditorClassIdentifier: 
-  layouts:
-  - divisions: 2
-    cellSize: 300
-  - divisions: 3
-    cellSize: 200
-  - divisions: 4
-    cellSize: 150
-  - divisions: 5
-    cellSize: 120
-  cutStyle: 12
-  cutDepth: 0.22
+  difficultyProfiles:
+  - {fileID: 11400000, guid: ca510a1d11f24b41ad51e2a6e4910001, type: 2}
+  - {fileID: 11400000, guid: ca510a1d11f24b41ad51e2a6e4910002, type: 2}
+  - {fileID: 11400000, guid: ca510a1d11f24b41ad51e2a6e4910003, type: 2}
+  defaultDifficulty: 0
   useFixedCutSeed: 0
   cutSeed: 1729
   imagePaths:
@@ -45,3 +39,15 @@ MonoBehaviour:
   - PuzzleImages/17_banheiro_espelho
   - PuzzleImages/18_fresta_porta
   - PuzzleImages/19_tv_estatica
+  - PuzzleImages/20_debaixo_da_cama
+  - PuzzleImages/21_pessoa_errada_corredor
+  - PuzzleImages/22_elevador_fechando
+  - PuzzleImages/23_janela_decimo_andar
+  - PuzzleImages/24_escada_sem_fim
+  - PuzzleImages/25_tv_reflexo_sofa
+  - PuzzleImages/26_banheiro_duplo_reflexo
+  - PuzzleImages/27_corredor_branco_surreal
+  - PuzzleImages/28_kaiju_cidade_inundada
+  - PuzzleImages/29_bazar_especiarias
+  - PuzzleImages/30_ilha_quatro_biomas
+  - PuzzleImages/31_floresta_kirigami_3d

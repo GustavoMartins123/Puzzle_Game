@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,28 +12,60 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     private static readonly Color AccentColor = new Color(0.25f, 0.92f, 0.78f, 1f);
     private static readonly Color MutedTextColor = new Color(0.66f, 0.72f, 0.79f, 1f);
 
-    private Func<PuzzleCutStyle, bool> confirmed;
+    private readonly Dictionary<PuzzleCutStyle, Toggle> styleOptions =
+        new Dictionary<PuzzleCutStyle, Toggle>();
+
+    private Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> confirmed;
+    private PuzzleDifficultyProfile selectedDifficulty;
     private PuzzleCutStyle selectedStyle;
     private Button confirmButton;
     private Font font;
-    private float cutDepth;
     private Texture2D previewTexture;
     private ProceduralPuzzlePreviewGraphic previewGraphic;
     private Text previewTitle;
     private GameObject noPreviewMessage;
+    private Text difficultySummary;
 
     public static PuzzleCutSelectionMenu Show(
         RectTransform parent,
+        IReadOnlyList<PuzzleDifficultyProfile> difficulties,
+        PuzzleDifficultyProfile initialDifficulty,
         PuzzleCutStyle initialStyle,
-        float cutDepth,
         Texture2D previewTexture,
-        Func<PuzzleCutStyle, bool> onConfirmed)
+        Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> onConfirmed)
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
+        if (difficulties == null || difficulties.Count == 0)
+            throw new ArgumentException("At least one difficulty profile is required.", nameof(difficulties));
+        if (initialDifficulty == null) throw new ArgumentNullException(nameof(initialDifficulty));
+        bool containsInitialDifficulty = false;
+        var profileList = new PuzzleDifficultyProfile[difficulties.Count];
+        var difficultyValues = new HashSet<PuzzleDifficulty>();
+        for (int i = 0; i < difficulties.Count; i++)
+        {
+            PuzzleDifficultyProfile profile = difficulties[i];
+            if (profile == null)
+                throw new ArgumentException($"Difficulty profile {i} is missing.", nameof(difficulties));
+            if (!profile.TryValidate(out string profileError))
+                throw new ArgumentException(
+                    $"Difficulty profile '{profile.name}' is invalid: {profileError}.",
+                    nameof(difficulties));
+            if (!difficultyValues.Add(profile.Difficulty))
+                throw new ArgumentException(
+                    $"Difficulty {profile.Difficulty} is duplicated.",
+                    nameof(difficulties));
+
+            profileList[i] = profile;
+            if (profile == initialDifficulty) containsInitialDifficulty = true;
+        }
+
+        if (!containsInitialDifficulty)
+            throw new ArgumentException("Initial difficulty is not part of the configured profiles.");
         if (!Enum.IsDefined(typeof(PuzzleCutStyle), initialStyle))
             throw new ArgumentOutOfRangeException(nameof(initialStyle));
-        if (!float.IsFinite(cutDepth) || cutDepth < 0.08f || cutDepth > 0.3f)
-            throw new ArgumentOutOfRangeException(nameof(cutDepth));
+        if (!initialDifficulty.AllowsStyle(initialStyle))
+            throw new ArgumentException(
+                $"Initial style {initialStyle} is not allowed by {initialDifficulty.DisplayName}.");
         if (previewTexture == null) throw new ArgumentNullException(nameof(previewTexture));
         if (onConfirmed == null) throw new ArgumentNullException(nameof(onConfirmed));
 
@@ -44,7 +77,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         overlay.raycastTarget = true;
 
         PuzzleCutSelectionMenu menu = root.AddComponent<PuzzleCutSelectionMenu>();
-        menu.Initialize(initialStyle, cutDepth, previewTexture, onConfirmed);
+        menu.Initialize(profileList, initialDifficulty, initialStyle, previewTexture, onConfirmed);
         rootRect.SetAsLastSibling();
         return menu;
     }
@@ -56,14 +89,14 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     }
 
     private void Initialize(
+        PuzzleDifficultyProfile[] difficulties,
+        PuzzleDifficultyProfile initialDifficulty,
         PuzzleCutStyle initialStyle,
-        float cutDepth,
         Texture2D previewTexture,
-        Func<PuzzleCutStyle, bool> onConfirmed)
+        Func<PuzzleDifficultyProfile, PuzzleCutStyle, bool> onConfirmed)
     {
         selectedStyle = initialStyle;
         confirmed = onConfirmed;
-        this.cutDepth = cutDepth;
         this.previewTexture = previewTexture;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null)
@@ -73,7 +106,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         CreateText(
             "Title",
             panel,
-            "ESCOLHA O FORMATO DAS PEÇAS",
+            "CONFIGURE SUA PARTIDA",
             30,
             FontStyle.Bold,
             Color.white,
@@ -85,7 +118,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         CreateText(
             "Subtitle",
             panel,
-            "Selecione um formato para ver a prévia ampliada.",
+            "Escolha a dificuldade e depois selecione um formato.",
             17,
             FontStyle.Normal,
             MutedTextColor,
@@ -95,16 +128,21 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f));
 
+        Toggle initialDifficultyToggle = CreateDifficultySelector(
+            panel,
+            difficulties,
+            initialDifficulty);
+
         RectTransform gridRect = CreateRect("Options", panel);
         SetRect(
             gridRect,
-            new Vector2(40f, -125f),
-            new Vector2(460f, 550f),
+            new Vector2(40f, -210f),
+            new Vector2(460f, 460f),
             new Vector2(0f, 1f),
             new Vector2(0f, 1f));
         GridLayoutGroup grid = gridRect.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(218f, 64f);
-        grid.spacing = new Vector2(14f, 12f);
+        grid.cellSize = new Vector2(218f, 56f);
+        grid.spacing = new Vector2(14f, 10f);
         grid.childAlignment = TextAnchor.UpperLeft;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 2;
@@ -122,9 +160,11 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
 
         if (initialToggle == null)
             throw new InvalidOperationException($"No UI option exists for cut style {initialStyle}.");
-        initialToggle.SetIsOnWithoutNotify(true);
-        initialToggle.graphic.canvasRenderer.SetAlpha(1f);
-        initialToggle.onValueChanged.Invoke(true);
+
+        initialDifficultyToggle.SetIsOnWithoutNotify(true);
+        initialDifficultyToggle.graphic.canvasRenderer.SetAlpha(1f);
+        initialDifficultyToggle.GetComponent<Image>().color = CardSelectedColor;
+        ApplyDifficulty(initialDifficulty, initialStyle);
         group.allowSwitchOff = false;
 
         confirmButton = CreateButton(panel);
@@ -147,6 +187,111 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         return panel;
     }
 
+    private Toggle CreateDifficultySelector(
+        RectTransform parent,
+        PuzzleDifficultyProfile[] difficulties,
+        PuzzleDifficultyProfile initialDifficulty)
+    {
+        RectTransform selectorRect = CreateRect("Difficulties", parent);
+        SetRect(
+            selectorRect,
+            new Vector2(0f, -105f),
+            new Vector2(1000f, 56f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f));
+        GridLayoutGroup grid = selectorRect.gameObject.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(324f, 54f);
+        grid.spacing = new Vector2(14f, 0f);
+        grid.childAlignment = TextAnchor.UpperCenter;
+        grid.constraint = GridLayoutGroup.Constraint.FixedRowCount;
+        grid.constraintCount = 1;
+
+        RectTransform summaryRect = CreateText(
+            "DifficultySummary",
+            parent,
+            string.Empty,
+            14,
+            FontStyle.Normal,
+            MutedTextColor,
+            TextAnchor.MiddleCenter,
+            new Vector2(0f, -165f),
+            new Vector2(1000f, 40f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f));
+        difficultySummary = summaryRect.GetComponent<Text>();
+
+        ToggleGroup group = selectorRect.gameObject.AddComponent<ToggleGroup>();
+        group.allowSwitchOff = false;
+        Toggle initialToggle = null;
+        for (int i = 0; i < difficulties.Length; i++)
+        {
+            PuzzleDifficultyProfile profile = difficulties[i];
+            Toggle toggle = CreateDifficultyOption(selectorRect, group, profile);
+            if (profile == initialDifficulty) initialToggle = toggle;
+        }
+
+        if (initialToggle == null)
+            throw new InvalidOperationException("Initial difficulty toggle was not created.");
+        return initialToggle;
+    }
+
+    private Toggle CreateDifficultyOption(
+        RectTransform parent,
+        ToggleGroup group,
+        PuzzleDifficultyProfile profile)
+    {
+        GameObject cardObject = CreateUiObject(profile.Difficulty.ToString(), parent);
+        Image background = cardObject.AddComponent<Image>();
+        background.color = CardColor;
+
+        Toggle toggle = cardObject.AddComponent<Toggle>();
+        toggle.targetGraphic = background;
+        toggle.group = group;
+        toggle.navigation = new Navigation { mode = Navigation.Mode.None };
+        toggle.transition = Selectable.Transition.ColorTint;
+        toggle.colors = OptionColors();
+
+        RectTransform box = CreateRect("Checkbox", cardObject.transform);
+        SetRect(
+            box,
+            new Vector2(16f, 0f),
+            new Vector2(22f, 22f),
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f));
+        Image boxImage = box.gameObject.AddComponent<Image>();
+        boxImage.color = new Color(0.025f, 0.035f, 0.05f, 1f);
+        boxImage.raycastTarget = false;
+
+        RectTransform check = CreateRect("Checkmark", box);
+        SetRect(check, Vector2.zero, new Vector2(13f, 13f), Vector2.one * 0.5f, Vector2.one * 0.5f);
+        Image checkImage = check.gameObject.AddComponent<Image>();
+        checkImage.color = AccentColor;
+        checkImage.raycastTarget = false;
+        checkImage.canvasRenderer.SetAlpha(0f);
+        toggle.graphic = checkImage;
+
+        CreateText(
+            "Label",
+            cardObject.transform,
+            profile.DisplayName,
+            17,
+            FontStyle.Bold,
+            Color.white,
+            TextAnchor.MiddleLeft,
+            new Vector2(50f, 0f),
+            new Vector2(255f, 40f),
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f));
+
+        toggle.onValueChanged.AddListener(isOn =>
+        {
+            background.color = isOn ? CardSelectedColor : CardColor;
+            if (isOn) ApplyDifficulty(profile, profile.DefaultCutStyle);
+        });
+        toggle.SetIsOnWithoutNotify(false);
+        return toggle;
+    }
+
     private Toggle CreateOption(
         RectTransform parent,
         ToggleGroup group,
@@ -161,16 +306,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         toggle.group = group;
         toggle.navigation = new Navigation { mode = Navigation.Mode.None };
         toggle.transition = Selectable.Transition.ColorTint;
-        toggle.colors = new ColorBlock
-        {
-            normalColor = Color.white,
-            highlightedColor = new Color(1.18f, 1.18f, 1.18f, 1f),
-            pressedColor = new Color(0.78f, 0.82f, 0.86f, 1f),
-            selectedColor = Color.white,
-            disabledColor = new Color(0.48f, 0.48f, 0.48f, 0.65f),
-            colorMultiplier = 1f,
-            fadeDuration = 0.1f,
-        };
+        toggle.colors = OptionColors();
 
         RectTransform box = CreateRect("Checkbox", cardObject.transform);
         SetRect(
@@ -214,7 +350,42 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             UpdatePreview(optionStyle);
         });
         toggle.SetIsOnWithoutNotify(false);
+        styleOptions.Add(style, toggle);
         return toggle;
+    }
+
+    private void ApplyDifficulty(
+        PuzzleDifficultyProfile profile,
+        PuzzleCutStyle preferredStyle)
+    {
+        if (profile == null) throw new ArgumentNullException(nameof(profile));
+        if (!profile.TryValidate(out string error))
+            throw new InvalidOperationException(
+                $"Difficulty profile '{profile.name}' is invalid: {error}.");
+        if (difficultySummary == null)
+            throw new InvalidOperationException("Difficulty summary is missing.");
+
+        selectedDifficulty = profile;
+        difficultySummary.text = $"{profile.Description}  {profile.BuildRuleSummary()}";
+
+        foreach (KeyValuePair<PuzzleCutStyle, Toggle> option in styleOptions)
+        {
+            bool allowed = profile.AllowsStyle(option.Key);
+            option.Value.SetIsOnWithoutNotify(false);
+            option.Value.GetComponent<Image>().color = CardColor;
+            option.Value.gameObject.SetActive(allowed);
+        }
+
+        if (!profile.AllowsStyle(preferredStyle))
+            throw new InvalidOperationException(
+                $"Cut style {preferredStyle} is not allowed by {profile.DisplayName}.");
+        if (!styleOptions.TryGetValue(preferredStyle, out Toggle targetToggle))
+            throw new InvalidOperationException(
+                $"No UI option exists for cut style {preferredStyle}.");
+
+        targetToggle.SetIsOnWithoutNotify(true);
+        targetToggle.graphic.canvasRenderer.SetAlpha(1f);
+        targetToggle.onValueChanged.Invoke(true);
     }
 
     private void CreatePreviewPanel(RectTransform parent)
@@ -223,8 +394,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform panel = (RectTransform)panelObject.transform;
         SetRect(
             panel,
-            new Vector2(-40f, -125f),
-            new Vector2(500f, 550f),
+            new Vector2(-40f, -210f),
+            new Vector2(500f, 460f),
             new Vector2(1f, 1f),
             new Vector2(1f, 1f));
         Image panelImage = panelObject.AddComponent<Image>();
@@ -250,7 +421,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         SetRect(
             frame,
             new Vector2(0f, -75f),
-            new Vector2(440f, 400f),
+            new Vector2(440f, 310f),
             new Vector2(0.5f, 1f),
             new Vector2(0.5f, 1f));
         Image frameImage = frameObject.AddComponent<Image>();
@@ -299,7 +470,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     {
         if (!Enum.IsDefined(typeof(PuzzleCutStyle), style))
             throw new ArgumentOutOfRangeException(nameof(style));
-        if (previewGraphic == null || previewTitle == null || noPreviewMessage == null)
+        if (selectedDifficulty == null || previewGraphic == null ||
+            previewTitle == null || noPreviewMessage == null)
             throw new InvalidOperationException("Cut selection preview panel is incomplete.");
 
         previewTitle.text = LabelFor(style);
@@ -311,7 +483,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         ProceduralPuzzleGeometry[,] board = ProceduralPuzzleGenerator.Create(
             3,
             style,
-            cutDepth,
+            selectedDifficulty.CutDepth,
             3109 + (int)style * 97);
         previewGraphic.Configure(board[1, 1], previewTexture);
     }
@@ -322,7 +494,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform rect = (RectTransform)buttonObject.transform;
         SetRect(
             rect,
-            new Vector2(260f, 28f),
+            new Vector2(0f, 40f),
             new Vector2(300f, 58f),
             new Vector2(0.5f, 0f),
             new Vector2(0.5f, 0f));
@@ -365,9 +537,23 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             throw new InvalidOperationException("Cut selection confirmation callback is missing.");
 
         confirmButton.interactable = false;
-        if (confirmed(selectedStyle)) Close();
+        if (selectedDifficulty == null)
+            throw new InvalidOperationException("Difficulty selection is missing.");
+
+        if (confirmed(selectedDifficulty, selectedStyle)) Close();
         else confirmButton.interactable = true;
     }
+
+    private static ColorBlock OptionColors() => new ColorBlock
+    {
+        normalColor = Color.white,
+        highlightedColor = new Color(1.18f, 1.18f, 1.18f, 1f),
+        pressedColor = new Color(0.78f, 0.82f, 0.86f, 1f),
+        selectedColor = Color.white,
+        disabledColor = new Color(0.48f, 0.48f, 0.48f, 0.65f),
+        colorMultiplier = 1f,
+        fadeDuration = 0.1f,
+    };
 
     private RectTransform CreateText(
         string name,

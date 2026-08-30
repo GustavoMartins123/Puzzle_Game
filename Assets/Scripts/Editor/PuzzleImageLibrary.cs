@@ -7,6 +7,7 @@ public static class PuzzleImageLibrary
 {
     public const string Folder = "Assets/Resources/PuzzleImages";
     public const int MaxTextureSize = 2048;
+    public const int CompressionQuality = 85;
 
     private const string ResourcesRoot = "Assets/Resources/";
 
@@ -26,6 +27,9 @@ public static class PuzzleImageLibrary
         importer.anisoLevel = 1;
         importer.alphaIsTransparency = true;
         importer.maxTextureSize = MaxTextureSize;
+        importer.textureCompression = TextureImporterCompression.Compressed;
+        importer.crunchedCompression = true;
+        importer.compressionQuality = CompressionQuality;
     }
 
     public static bool NeedsReimport(TextureImporter importer) =>
@@ -35,7 +39,10 @@ public static class PuzzleImageLibrary
         importer.mipmapEnabled ||
         importer.isReadable ||
         importer.wrapMode != TextureWrapMode.Clamp ||
-        importer.maxTextureSize != MaxTextureSize;
+        importer.maxTextureSize != MaxTextureSize ||
+        importer.textureCompression != TextureImporterCompression.Compressed ||
+        !importer.crunchedCompression ||
+        importer.compressionQuality != CompressionQuality;
 
     public static int NormalizeImportSettings()
     {

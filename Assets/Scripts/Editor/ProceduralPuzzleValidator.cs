@@ -33,12 +33,69 @@ public static class ProceduralPuzzleValidator
         }
 
         ValidateSelectionUi();
+        ValidateSessionDefinitions();
         ValidateProceduralPrefabs();
         ValidateGameScene();
 
         Debug.Log(
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
-            $"{piecesValidated} pieces across every cut style; selection UI, prefabs, and scene are valid.");
+            $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
+            "selection UI, prefabs, and scene are valid.");
+    }
+
+    private static void ValidateSessionDefinitions()
+    {
+        PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+            "Assets/Settings/PuzzleConfig.asset");
+        if (config == null)
+            throw new InvalidOperationException("Puzzle configuration is missing.");
+        if (!config.TryValidate(out string configError))
+            throw new InvalidOperationException(
+                $"Puzzle configuration is invalid: {configError}.");
+
+        var texture = new Texture2D(8, 8)
+        {
+            name = "ProceduralPuzzleSessionValidationTexture",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
+
+        try
+        {
+            for (int profileIndex = 0; profileIndex < config.DifficultyProfiles.Count; profileIndex++)
+            {
+                PuzzleDifficultyProfile profile = config.DifficultyProfiles[profileIndex];
+                for (int layoutIndex = 0; layoutIndex < profile.Layouts.Count; layoutIndex++)
+                {
+                    PuzzleLayout layout = profile.Layouts[layoutIndex];
+                    for (int styleIndex = 0; styleIndex < profile.AllowedCutStyles.Count; styleIndex++)
+                    {
+                        PuzzleCutStyle style = profile.AllowedCutStyles[styleIndex];
+                        int cutSeed = 1000 + profileIndex * 100 + layoutIndex * 10 + styleIndex;
+                        int scatterSeed = 2000 + profileIndex * 100 + layoutIndex * 10 + styleIndex;
+                        var session = new PuzzleSessionDefinition(
+                            profile,
+                            layout,
+                            style,
+                            texture,
+                            cutSeed,
+                            scatterSeed);
+
+                        if (!session.TryValidate(out string sessionError))
+                            throw new InvalidOperationException(
+                                $"Valid session was rejected: {sessionError}.");
+                        if (session.Difficulty != profile || !profile.ContainsLayout(session.Layout) ||
+                            session.CutStyle != style || session.Texture != texture ||
+                            session.CutSeed != cutSeed || session.ScatterSeed != scatterSeed)
+                            throw new InvalidOperationException(
+                                "Puzzle session did not retain its exact immutable definition.");
+                    }
+                }
+            }
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(texture);
+        }
     }
 
     private static void ValidateSelectionUi()
@@ -55,12 +112,22 @@ public static class ProceduralPuzzleValidator
 
         try
         {
+            PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+                "Assets/Settings/PuzzleConfig.asset");
+            if (config == null)
+                throw new InvalidOperationException("Puzzle configuration is missing.");
+            if (!config.TryValidate(out string configError))
+                throw new InvalidOperationException(
+                    $"Puzzle configuration is invalid: {configError}.");
+            PuzzleDifficultyProfile initialDifficulty = config.DefaultDifficulty;
+
             PuzzleCutSelectionMenu menu = PuzzleCutSelectionMenu.Show(
                 (RectTransform)canvasObject.transform,
-                PuzzleCutStyle.Square,
-                CutDepth,
+                config.DifficultyProfiles,
+                initialDifficulty,
+                initialDifficulty.DefaultCutStyle,
                 previewTexture,
-                _ => true);
+                (_, _) => true);
             Canvas.ForceUpdateCanvases();
 
             int styleCount = Enum.GetValues(typeof(PuzzleCutStyle)).Length;
@@ -69,9 +136,11 @@ public static class ProceduralPuzzleValidator
                 menu.GetComponentsInChildren<ProceduralPuzzlePreviewGraphic>(true);
             Button[] buttons = menu.GetComponentsInChildren<Button>(true);
 
-            if (toggles.Length != styleCount)
+            int difficultyCount = config.DifficultyProfiles.Count;
+            if (toggles.Length != styleCount + difficultyCount)
                 throw new InvalidOperationException(
-                    $"Selection UI has {toggles.Length} toggles; expected {styleCount}.");
+                    $"Selection UI has {toggles.Length} toggles; expected " +
+                    $"{styleCount + difficultyCount}.");
             if (previews.Length != 1)
                 throw new InvalidOperationException(
                     $"Selection UI has {previews.Length} previews; expected one shared lateral preview.");
@@ -80,27 +149,41 @@ public static class ProceduralPuzzleValidator
                     $"Selection UI has {buttons.Length} confirmation buttons; expected 1.");
 
             Transform options = menu.transform.Find("Panel/Options");
+            RectTransform panelRect = menu.transform.Find("Panel") as RectTransform;
             Transform previewPanel = menu.transform.Find("Panel/PreviewPanel");
             Transform previewTransform = previewPanel?.Find("PreviewFrame/Preview");
             Transform noPreviewTransform = previewPanel?.Find("PreviewFrame/NoPreview");
             Transform previewTitleTransform = previewPanel?.Find("PreviewTitle");
-            if (options == null || previewPanel == null || previewTransform == null ||
+            if (options == null || panelRect == null || previewPanel == null || previewTransform == null ||
                 noPreviewTransform == null || previewTitleTransform == null)
                 throw new InvalidOperationException("Selection UI master-detail layout is incomplete.");
+            if (panelRect.rect.width > 1600f || panelRect.rect.height > 900f)
+                throw new InvalidOperationException(
+                    "Selection UI panel exceeds the 1600x900 reference viewport.");
 
             ProceduralPuzzlePreviewGraphic preview = previews[0];
             Text previewTitle = previewTitleTransform.GetComponent<Text>();
             if (preview.transform != previewTransform || previewTitle == null)
                 throw new InvalidOperationException("Selection UI lateral preview references are invalid.");
 
-            foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
-                ValidateSelectionStyle(
+            Transform difficulties = menu.transform.Find("Panel/Difficulties");
+            Text difficultySummary = menu.transform.Find("Panel/DifficultySummary")?.GetComponent<Text>();
+            if (difficulties == null || difficultySummary == null)
+                throw new InvalidOperationException("Selection UI difficulty controls are incomplete.");
+
+            for (int i = 0; i < difficultyCount; i++)
+            {
+                PuzzleDifficultyProfile profile = config.DifficultyProfiles[i];
+                ValidateDifficultySelection(
+                    difficulties,
                     options,
                     preview,
                     noPreviewTransform.gameObject,
                     previewTitle,
+                    difficultySummary,
                     previewTexture,
-                    style);
+                    profile);
+            }
 
             Transform randomCard = menu.transform.Find("Panel/Options/FullyRandom");
             if (randomCard == null)
@@ -112,6 +195,47 @@ public static class ProceduralPuzzleValidator
         {
             UnityEngine.Object.DestroyImmediate(canvasObject);
             UnityEngine.Object.DestroyImmediate(previewTexture);
+        }
+    }
+
+    private static void ValidateDifficultySelection(
+        Transform difficulties,
+        Transform options,
+        ProceduralPuzzlePreviewGraphic preview,
+        GameObject noPreviewMessage,
+        Text previewTitle,
+        Text difficultySummary,
+        Texture2D previewTexture,
+        PuzzleDifficultyProfile profile)
+    {
+        Transform difficultyOption = difficulties.Find(profile.Difficulty.ToString());
+        Toggle difficultyToggle = difficultyOption?.GetComponent<Toggle>();
+        if (difficultyToggle == null)
+            throw new InvalidOperationException(
+                $"Selection UI is missing difficulty {profile.Difficulty}.");
+
+        difficultyToggle.isOn = true;
+        Canvas.ForceUpdateCanvases();
+        if (!difficultySummary.text.Contains(profile.Description) ||
+            !difficultySummary.text.Contains(profile.BuildRuleSummary()))
+            throw new InvalidOperationException(
+                $"Selecting {profile.DisplayName} did not update its rule summary.");
+
+        foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
+        {
+            Transform option = options.Find(style.ToString());
+            if (option == null || option.gameObject.activeSelf != profile.AllowsStyle(style))
+                throw new InvalidOperationException(
+                    $"Difficulty {profile.DisplayName} exposed an invalid option state for {style}.");
+
+            if (!profile.AllowsStyle(style)) continue;
+            ValidateSelectionStyle(
+                options,
+                preview,
+                noPreviewMessage,
+                previewTitle,
+                previewTexture,
+                style);
         }
     }
 
@@ -230,6 +354,35 @@ public static class ProceduralPuzzleValidator
         if (selectionRoot == null || selectionRoot.objectReferenceValue == null)
             throw new InvalidOperationException(
                 "Game scene PuzzleController is missing its selection UI root reference.");
+
+        ValidateMenuButton(scene, "RetryButton", "Retry");
+        ValidateMenuButton(scene, "OptionsButton", "BackToOptions");
+        ValidateMenuButton(scene, "QuitButton", "Quit");
+    }
+
+    private static void ValidateMenuButton(Scene scene, string objectName, string methodName)
+    {
+        Button button = null;
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            Button[] candidates = root.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (candidates[i].name != objectName) continue;
+                button = candidates[i];
+                break;
+            }
+
+            if (button != null) break;
+        }
+
+        if (button == null)
+            throw new InvalidOperationException($"Game scene is missing button '{objectName}'.");
+        if (button.onClick.GetPersistentEventCount() != 1 ||
+            !(button.onClick.GetPersistentTarget(0) is GameMenu) ||
+            button.onClick.GetPersistentMethodName(0) != methodName)
+            throw new InvalidOperationException(
+                $"Button '{objectName}' must call GameMenu.{methodName} exactly once.");
     }
 
     private static int SeedCount(PuzzleCutStyle style)

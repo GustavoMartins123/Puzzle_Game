@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum PuzzleCutStyle
@@ -21,24 +22,11 @@ public enum PuzzleCutStyle
 [CreateAssetMenu(fileName = "PuzzleConfig", menuName = "Puzzle/Puzzle Config")]
 public class PuzzleConfig : ScriptableObject
 {
-    [System.Serializable]
-    public struct Layout
-    {
-        public int divisions;
-        public float cellSize;
-    }
+    [Header("Difficulty")]
+    [SerializeField] private PuzzleDifficultyProfile[] difficultyProfiles;
+    [SerializeField] private PuzzleDifficulty defaultDifficulty = PuzzleDifficulty.Casual;
 
-    [SerializeField] private Layout[] layouts =
-    {
-        new Layout { divisions = 2, cellSize = 300f },
-        new Layout { divisions = 3, cellSize = 200f },
-        new Layout { divisions = 4, cellSize = 150f },
-        new Layout { divisions = 5, cellSize = 120f },
-    };
-
-    [Header("Procedural Pieces")]
-    [SerializeField] private PuzzleCutStyle cutStyle = PuzzleCutStyle.FullyRandom;
-    [SerializeField, Range(0.08f, 0.3f)] private float cutDepth = 0.22f;
+    [Header("Session Seeds")]
     [SerializeField] private bool useFixedCutSeed;
     [SerializeField] private int cutSeed = 1729;
 
@@ -46,42 +34,53 @@ public class PuzzleConfig : ScriptableObject
 
     public int ImageCount => imagePaths == null ? 0 : imagePaths.Length;
 
-    public PuzzleCutStyle CutStyle => cutStyle;
+    public IReadOnlyList<PuzzleDifficultyProfile> DifficultyProfiles => difficultyProfiles;
 
-    public float CutDepth => cutDepth;
+    public PuzzleDifficultyProfile DefaultDifficulty => GetDifficulty(defaultDifficulty);
 
     public bool TryValidate(out string error)
     {
-        if (layouts == null || layouts.Length == 0)
+        if (difficultyProfiles == null || difficultyProfiles.Length == 0)
         {
-            error = "at least one layout is required";
+            error = "at least one difficulty profile is required";
             return false;
         }
 
-        for (int i = 0; i < layouts.Length; i++)
+        var difficulties = new HashSet<PuzzleDifficulty>();
+        bool hasDefault = false;
+        for (int i = 0; i < difficultyProfiles.Length; i++)
         {
-            if (layouts[i].divisions < 2)
+            PuzzleDifficultyProfile profile = difficultyProfiles[i];
+            if (profile == null)
             {
-                error = $"layout {i} must have at least 2 divisions";
+                error = $"difficulty profile {i} is missing";
                 return false;
             }
 
-            if (!float.IsFinite(layouts[i].cellSize) || layouts[i].cellSize <= 0f)
+            if (!profile.TryValidate(out string profileError))
             {
-                error = $"layout {i} must have a positive finite cell size";
+                error = $"difficulty profile '{profile.name}' is invalid: {profileError}";
                 return false;
             }
+
+            if (!difficulties.Add(profile.Difficulty))
+            {
+                error = $"difficulty {profile.Difficulty} is duplicated";
+                return false;
+            }
+
+            if (profile.Difficulty == defaultDifficulty) hasDefault = true;
         }
 
-        if (!Enum.IsDefined(typeof(PuzzleCutStyle), cutStyle))
+        if (!hasDefault)
         {
-            error = $"cut style value {(int)cutStyle} is invalid";
+            error = $"default difficulty {defaultDifficulty} is missing";
             return false;
         }
 
-        if (!float.IsFinite(cutDepth) || cutDepth < 0.08f || cutDepth > 0.3f)
+        if (useFixedCutSeed && cutSeed <= 0)
         {
-            error = "cut depth must be between 0.08 and 0.30";
+            error = "fixed cut seed must be positive";
             return false;
         }
 
@@ -102,15 +101,20 @@ public class PuzzleConfig : ScriptableObject
         return true;
     }
 
-    public Layout PickLayout()
+    public PuzzleDifficultyProfile GetDifficulty(PuzzleDifficulty difficulty)
     {
         if (!TryValidate(out string error))
             throw new InvalidOperationException($"Invalid PuzzleConfig: {error}.");
 
-        return layouts[UnityEngine.Random.Range(0, layouts.Length)];
+        for (int i = 0; i < difficultyProfiles.Length; i++)
+            if (difficultyProfiles[i].Difficulty == difficulty) return difficultyProfiles[i];
+
+        throw new InvalidOperationException($"Difficulty {difficulty} is not configured.");
     }
 
     public int CreateCutSeed() => useFixedCutSeed ? cutSeed : UnityEngine.Random.Range(1, int.MaxValue);
+
+    public int CreateScatterSeed() => UnityEngine.Random.Range(1, int.MaxValue);
 
     public Texture2D PickImage()
     {
