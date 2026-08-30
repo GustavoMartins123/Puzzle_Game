@@ -102,6 +102,11 @@ public class PuzzleController : MonoBehaviour
             input.RotationRequested -= RotateHeldPiece;
             input.Dispose();
         }
+        if (progressStore != null)
+        {
+            progressStore.Dispose();
+            progressStore = null;
+        }
         if (hud != null) hud.Close();
     }
 
@@ -479,6 +484,7 @@ public class PuzzleController : MonoBehaviour
         {
             progressUpdate = progress.RecordCompletion(config, currentSession, metrics, score);
             progressStore.Save(progress, config);
+            progressStore.RecordSession(currentSession, metrics, score, progressUpdate);
         }
         catch (Exception exception)
         {

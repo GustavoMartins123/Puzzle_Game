@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -322,27 +323,86 @@ public static class ProceduralPuzzleValidator
         if (!invalidSchemaRejected)
             throw new InvalidOperationException("Unsupported progress schema was accepted.");
 
-        string validationKey =
-            "Puzzle.Validation." + Guid.NewGuid().ToString("N");
-        if (PlayerPrefs.HasKey(validationKey))
-            throw new InvalidOperationException(
-                $"Temporary PlayerPrefs key '{validationKey}' already exists.");
+        string validationPath = Path.Combine(
+            Path.GetTempPath(),
+            "PuzzleProgressValidation." + Guid.NewGuid().ToString("N") + ".db");
         try
         {
-            var store = new PuzzleProgressStore(validationKey);
-            store.Save(progress, config);
-            store.Save(progress, config);
-            PuzzleProgressData loaded = store.LoadOrCreate(config);
-            if (loaded.UniqueCompletedImages != progress.UniqueCompletedImages ||
-                loaded.BestResults.Count != progress.BestResults.Count)
-                throw new InvalidOperationException(
-                    "Transactional progress store changed persisted data.");
+            using (var store = new PuzzleProgressStore(validationPath))
+            {
+                store.Save(progress, config);
+                store.Save(progress, config);
+                PuzzleProgressData loaded = store.LoadOrCreate(config);
+                if (loaded.UniqueCompletedImages != progress.UniqueCompletedImages ||
+                    loaded.BestResults.Count != progress.BestResults.Count ||
+                    loaded.LastSelectedDifficulty != progress.LastSelectedDifficulty ||
+                    loaded.LastSelectedCutStyle != progress.LastSelectedCutStyle ||
+                    loaded.UnlockedImageIds.Count != progress.UnlockedImageIds.Count)
+                    throw new InvalidOperationException(
+                        "Transactional progress store changed persisted data.");
+
+                long sessionId = store.RecordSession(
+                    BuildHistoryValidationSession(config, progress),
+                    BuildHistoryValidationMetrics(),
+                    BuildHistoryValidationScore(config, progress),
+                    new PuzzleProgressUpdate(
+                        PuzzleMedal.Gold,
+                        false,
+                        Array.Empty<string>()));
+                System.Collections.Generic.IReadOnlyList<PuzzleSessionRecord> history =
+                    store.GetRecentSessions(int.MaxValue);
+                if (history.Count != 1 ||
+                    history[0].Id != sessionId ||
+                    history[0].Score <= 0 ||
+                    history[0].TotalPieces <= 0)
+                    throw new InvalidOperationException(
+                        "Session history persistence did not round-trip.");
+                if (store.GetSessionCount() != 1 ||
+                    store.GetTopScoreSessions(1).Count != 1)
+                    throw new InvalidOperationException(
+                        "Session history queries returned inconsistent data.");
+            }
         }
         finally
         {
-            PlayerPrefs.DeleteKey(validationKey);
-            PlayerPrefs.Save();
+            if (File.Exists(validationPath)) File.Delete(validationPath);
+            string journalPath = validationPath + "-journal";
+            if (File.Exists(journalPath)) File.Delete(journalPath);
         }
+    }
+
+    private static PuzzleSessionDefinition BuildHistoryValidationSession(
+        PuzzleConfig config,
+        PuzzleProgressData progress)
+    {
+        PuzzleImageDefinition image = config.GetImage(progress.LastSelectedImageId);
+        PuzzleDifficultyProfile profile = config.DefaultDifficulty;
+        return new PuzzleSessionDefinition(
+            profile,
+            profile.Layouts[0],
+            profile.DefaultCutStyle,
+            image.Id,
+            config.LoadImage(image),
+            7101,
+            7201);
+    }
+
+    private static PuzzleSessionMetrics BuildHistoryValidationMetrics()
+    {
+        var metrics = new PuzzleSessionMetrics();
+        metrics.Begin(1);
+        metrics.Tick(1f);
+        metrics.RecordCorrectPlacement();
+        return metrics;
+    }
+
+    private static PuzzleScoreBreakdown BuildHistoryValidationScore(
+        PuzzleConfig config,
+        PuzzleProgressData progress)
+    {
+        return PuzzleScoreCalculator.Calculate(
+            BuildHistoryValidationSession(config, progress),
+            BuildHistoryValidationMetrics());
     }
 
     private static void CompleteImageForProgressValidation(

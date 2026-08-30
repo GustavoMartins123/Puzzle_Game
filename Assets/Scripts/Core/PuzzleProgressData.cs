@@ -74,6 +74,30 @@ public sealed class PuzzleBestResultRecord
 
     public int Completions => completions;
 
+    public static PuzzleBestResultRecord FromPersisted(
+        string imageId,
+        PuzzleDifficulty difficulty,
+        int bestScore,
+        float bestSeconds,
+        PuzzleMedal bestMedal,
+        int completions)
+    {
+        if (string.IsNullOrWhiteSpace(imageId))
+            throw new ArgumentException("Image id is required.", nameof(imageId));
+        if (!Enum.IsDefined(typeof(PuzzleDifficulty), difficulty))
+            throw new ArgumentOutOfRangeException(nameof(difficulty));
+        if (!float.IsFinite(bestSeconds) || bestSeconds < 0f)
+            throw new ArgumentOutOfRangeException(nameof(bestSeconds));
+        if (!Enum.IsDefined(typeof(PuzzleMedal), bestMedal))
+            throw new ArgumentOutOfRangeException(nameof(bestMedal));
+        if (completions <= 0)
+            throw new ArgumentOutOfRangeException(nameof(completions));
+
+        var record = new PuzzleBestResultRecord(imageId, difficulty, bestScore, bestSeconds, bestMedal);
+        record.completions = completions;
+        return record;
+    }
+
     public bool Record(int score, float seconds, PuzzleMedal medal)
     {
         if (!float.IsFinite(seconds) || seconds < 0f)
@@ -200,6 +224,37 @@ public sealed class PuzzleProgressData
         progress.RefreshUnlockedImages(config);
         progress.Validate(config);
         return progress;
+    }
+
+    public static PuzzleProgressData CreateFromPersisted(
+        string lastSelectedImageId,
+        PuzzleDifficulty lastSelectedDifficulty,
+        PuzzleCutStyle lastSelectedCutStyle,
+        IReadOnlyList<string> unlockedImageIds,
+        IReadOnlyList<string> completedImageIds,
+        IReadOnlyList<PuzzleBestResultRecord> bestResults)
+    {
+        if (string.IsNullOrWhiteSpace(lastSelectedImageId))
+            throw new ArgumentException("Last selected image id is required.", nameof(lastSelectedImageId));
+        if (!Enum.IsDefined(typeof(PuzzleDifficulty), lastSelectedDifficulty))
+            throw new ArgumentOutOfRangeException(nameof(lastSelectedDifficulty));
+        if (!Enum.IsDefined(typeof(PuzzleCutStyle), lastSelectedCutStyle))
+            throw new ArgumentOutOfRangeException(nameof(lastSelectedCutStyle));
+        if (unlockedImageIds == null) throw new ArgumentNullException(nameof(unlockedImageIds));
+        if (completedImageIds == null) throw new ArgumentNullException(nameof(completedImageIds));
+        if (bestResults == null) throw new ArgumentNullException(nameof(bestResults));
+
+        return new PuzzleProgressData
+        {
+            schema = CurrentSchema,
+            version = CurrentVersion,
+            lastSelectedImageId = lastSelectedImageId,
+            lastSelectedDifficulty = lastSelectedDifficulty,
+            lastSelectedCutStyle = lastSelectedCutStyle,
+            unlockedImageIds = new List<string>(unlockedImageIds),
+            completedImageIds = new List<string>(completedImageIds),
+            bestResults = new List<PuzzleBestResultRecord>(bestResults),
+        };
     }
 
     public bool IsImageUnlocked(string imageId)
