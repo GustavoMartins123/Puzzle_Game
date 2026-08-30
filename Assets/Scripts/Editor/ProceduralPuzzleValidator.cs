@@ -57,7 +57,7 @@ public static class ProceduralPuzzleValidator
         {
             PuzzleCutSelectionMenu menu = PuzzleCutSelectionMenu.Show(
                 (RectTransform)canvasObject.transform,
-                PuzzleCutStyle.FullyRandom,
+                PuzzleCutStyle.Square,
                 CutDepth,
                 previewTexture,
                 _ => true);
@@ -72,41 +72,121 @@ public static class ProceduralPuzzleValidator
             if (toggles.Length != styleCount)
                 throw new InvalidOperationException(
                     $"Selection UI has {toggles.Length} toggles; expected {styleCount}.");
-            if (previews.Length != styleCount - 1)
+            if (previews.Length != 1)
                 throw new InvalidOperationException(
-                    $"Selection UI has {previews.Length} previews; expected {styleCount - 1}.");
+                    $"Selection UI has {previews.Length} previews; expected one shared lateral preview.");
             if (buttons.Length != 1)
                 throw new InvalidOperationException(
                     $"Selection UI has {buttons.Length} confirmation buttons; expected 1.");
 
-            foreach (ProceduralPuzzlePreviewGraphic preview in previews)
-            {
-                if (preview.mainTexture != previewTexture)
-                    throw new InvalidOperationException(
-                        $"Selection UI preview '{preview.name}' is missing the puzzle texture.");
-                if (preview.canvasRenderer.GetAlpha() < 0.99f)
-                    throw new InvalidOperationException(
-                        $"Selection UI preview '{preview.name}' is transparent.");
+            Transform options = menu.transform.Find("Panel/Options");
+            Transform previewPanel = menu.transform.Find("Panel/PreviewPanel");
+            Transform previewTransform = previewPanel?.Find("PreviewFrame/Preview");
+            Transform noPreviewTransform = previewPanel?.Find("PreviewFrame/NoPreview");
+            Transform previewTitleTransform = previewPanel?.Find("PreviewTitle");
+            if (options == null || previewPanel == null || previewTransform == null ||
+                noPreviewTransform == null || previewTitleTransform == null)
+                throw new InvalidOperationException("Selection UI master-detail layout is incomplete.");
 
-                Mesh mesh = preview.canvasRenderer.GetMesh();
-                if (mesh == null || mesh.vertexCount < 3 || mesh.triangles.Length < 3)
-                    throw new InvalidOperationException(
-                        $"Selection UI preview '{preview.name}' generated an empty mesh.");
-            }
+            ProceduralPuzzlePreviewGraphic preview = previews[0];
+            Text previewTitle = previewTitleTransform.GetComponent<Text>();
+            if (preview.transform != previewTransform || previewTitle == null)
+                throw new InvalidOperationException("Selection UI lateral preview references are invalid.");
+
+            foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
+                ValidateSelectionStyle(
+                    options,
+                    preview,
+                    noPreviewTransform.gameObject,
+                    previewTitle,
+                    previewTexture,
+                    style);
 
             Transform randomCard = menu.transform.Find("Panel/Options/FullyRandom");
             if (randomCard == null)
                 throw new InvalidOperationException("Selection UI is missing the FullyRandom option.");
             if (randomCard.Find("Preview") != null)
-                throw new InvalidOperationException("FullyRandom must not render a preview.");
-            if (randomCard.Find("NoPreview") == null)
-                throw new InvalidOperationException("FullyRandom must explain why it has no preview.");
+                throw new InvalidOperationException("Format options must not contain individual previews.");
         }
         finally
         {
             UnityEngine.Object.DestroyImmediate(canvasObject);
             UnityEngine.Object.DestroyImmediate(previewTexture);
         }
+    }
+
+    private static void ValidateSelectionStyle(
+        Transform options,
+        ProceduralPuzzlePreviewGraphic preview,
+        GameObject noPreviewMessage,
+        Text previewTitle,
+        Texture2D previewTexture,
+        PuzzleCutStyle style)
+    {
+        Transform option = options.Find(style.ToString());
+        Toggle toggle = option?.GetComponent<Toggle>();
+        Text label = option?.Find("Label")?.GetComponent<Text>();
+        if (toggle == null || label == null)
+            throw new InvalidOperationException($"Selection UI option '{style}' is incomplete.");
+        if (label.preferredWidth > label.rectTransform.rect.width + 0.1f ||
+            label.preferredHeight > label.rectTransform.rect.height + 0.1f)
+            throw new InvalidOperationException($"Selection UI label '{label.text}' is clipped.");
+
+        toggle.isOn = true;
+        Canvas.ForceUpdateCanvases();
+
+        int selectedCount = 0;
+        foreach (Toggle candidate in options.GetComponentsInChildren<Toggle>(true))
+            if (candidate.isOn) selectedCount++;
+        if (selectedCount != 1)
+            throw new InvalidOperationException(
+                $"Selecting '{style}' left {selectedCount} options active; expected exactly one.");
+        if (previewTitle.text != label.text)
+            throw new InvalidOperationException($"Selecting '{style}' did not update the preview title.");
+
+        Image selectedBackground = toggle.GetComponent<Image>();
+        Image unselectedBackground = null;
+        foreach (Toggle candidate in options.GetComponentsInChildren<Toggle>(true))
+        {
+            if (candidate.isOn) continue;
+            unselectedBackground = candidate.GetComponent<Image>();
+            if (unselectedBackground != null) break;
+        }
+        if (selectedBackground == null || unselectedBackground == null ||
+            selectedBackground.color == unselectedBackground.color)
+            throw new InvalidOperationException(
+                $"Selecting '{style}' did not create a distinct persistent card state.");
+
+        if (style == PuzzleCutStyle.FullyRandom)
+        {
+            if (preview.gameObject.activeSelf)
+                throw new InvalidOperationException("FullyRandom must hide the lateral mesh preview.");
+            if (!noPreviewMessage.activeSelf)
+                throw new InvalidOperationException("FullyRandom must show its no-preview explanation.");
+            return;
+        }
+
+        if (!preview.gameObject.activeSelf || noPreviewMessage.activeSelf)
+            throw new InvalidOperationException($"Selecting '{style}' did not show the lateral preview.");
+        if (preview.mainTexture != previewTexture)
+            throw new InvalidOperationException($"Preview for '{style}' is missing the puzzle texture.");
+        if (preview.canvasRenderer.GetAlpha() < 0.99f)
+            throw new InvalidOperationException($"Preview for '{style}' is transparent.");
+
+        Mesh mesh = preview.canvasRenderer.GetMesh();
+        if (mesh == null || mesh.vertexCount < 3 || mesh.triangles.Length < 3)
+            throw new InvalidOperationException($"Preview for '{style}' generated an empty mesh.");
+
+        Rect viewport = preview.rectTransform.rect;
+        Bounds bounds = mesh.bounds;
+        const float epsilon = 0.1f;
+        if (bounds.min.x < viewport.xMin - epsilon || bounds.max.x > viewport.xMax + epsilon ||
+            bounds.min.y < viewport.yMin - epsilon || bounds.max.y > viewport.yMax + epsilon)
+            throw new InvalidOperationException($"Preview for '{style}' exceeds its lateral viewport.");
+
+        if (style == PuzzleCutStyle.Square &&
+            Mathf.Abs(bounds.size.x - bounds.size.y) > epsilon)
+            throw new InvalidOperationException("Square preview was stretched instead of scaled uniformly.");
     }
 
     private static void ValidateProceduralPrefabs()

@@ -7,7 +7,6 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     private static readonly Color OverlayColor = new Color(0.025f, 0.035f, 0.055f, 0.96f);
     private static readonly Color PanelColor = new Color(0.055f, 0.075f, 0.11f, 1f);
     private static readonly Color CardColor = new Color(0.09f, 0.12f, 0.17f, 1f);
-    private static readonly Color CardHoverColor = new Color(0.13f, 0.18f, 0.25f, 1f);
     private static readonly Color CardSelectedColor = new Color(0.12f, 0.28f, 0.31f, 1f);
     private static readonly Color AccentColor = new Color(0.25f, 0.92f, 0.78f, 1f);
     private static readonly Color MutedTextColor = new Color(0.66f, 0.72f, 0.79f, 1f);
@@ -16,6 +15,11 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     private PuzzleCutStyle selectedStyle;
     private Button confirmButton;
     private Font font;
+    private float cutDepth;
+    private Texture2D previewTexture;
+    private ProceduralPuzzlePreviewGraphic previewGraphic;
+    private Text previewTitle;
+    private GameObject noPreviewMessage;
 
     public static PuzzleCutSelectionMenu Show(
         RectTransform parent,
@@ -59,6 +63,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     {
         selectedStyle = initialStyle;
         confirmed = onConfirmed;
+        this.cutDepth = cutDepth;
+        this.previewTexture = previewTexture;
         font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null)
             throw new InvalidOperationException("Unity built-in font 'LegacyRuntime.ttf' is unavailable.");
@@ -79,7 +85,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         CreateText(
             "Subtitle",
             panel,
-            "Marque uma opção. As miniaturas usam a mesma geometria procedural do tabuleiro.",
+            "Selecione um formato para ver a prévia ampliada.",
             17,
             FontStyle.Normal,
             MutedTextColor,
@@ -92,23 +98,25 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform gridRect = CreateRect("Options", panel);
         SetRect(
             gridRect,
-            new Vector2(0f, -125f),
-            new Vector2(1010f, 575f),
-            new Vector2(0.5f, 1f),
-            new Vector2(0.5f, 1f));
+            new Vector2(40f, -125f),
+            new Vector2(460f, 550f),
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f));
         GridLayoutGroup grid = gridRect.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(240f, 132f);
-        grid.spacing = new Vector2(16f, 15f);
-        grid.childAlignment = TextAnchor.UpperCenter;
+        grid.cellSize = new Vector2(218f, 64f);
+        grid.spacing = new Vector2(14f, 12f);
+        grid.childAlignment = TextAnchor.UpperLeft;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 4;
+        grid.constraintCount = 2;
+
+        CreatePreviewPanel(panel);
 
         ToggleGroup group = gridRect.gameObject.AddComponent<ToggleGroup>();
         group.allowSwitchOff = true;
         Toggle initialToggle = null;
         foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
         {
-            Toggle toggle = CreateOption(gridRect, group, style, cutDepth, previewTexture);
+            Toggle toggle = CreateOption(gridRect, group, style);
             if (style == initialStyle) initialToggle = toggle;
         }
 
@@ -116,6 +124,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             throw new InvalidOperationException($"No UI option exists for cut style {initialStyle}.");
         initialToggle.SetIsOnWithoutNotify(true);
         initialToggle.graphic.canvasRenderer.SetAlpha(1f);
+        initialToggle.onValueChanged.Invoke(true);
         group.allowSwitchOff = false;
 
         confirmButton = CreateButton(panel);
@@ -129,7 +138,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         SetRect(
             panel,
             Vector2.zero,
-            new Vector2(1100f, 860f),
+            new Vector2(1120f, 840f),
             Vector2.one * 0.5f,
             Vector2.one * 0.5f);
         Image image = panelObject.AddComponent<Image>();
@@ -141,9 +150,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
     private Toggle CreateOption(
         RectTransform parent,
         ToggleGroup group,
-        PuzzleCutStyle style,
-        float cutDepth,
-        Texture2D previewTexture)
+        PuzzleCutStyle style)
     {
         GameObject cardObject = CreateUiObject(style.ToString(), parent);
         Image background = cardObject.AddComponent<Image>();
@@ -156,11 +163,11 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         toggle.transition = Selectable.Transition.ColorTint;
         toggle.colors = new ColorBlock
         {
-            normalColor = CardColor,
-            highlightedColor = CardHoverColor,
-            pressedColor = CardSelectedColor,
-            selectedColor = CardSelectedColor,
-            disabledColor = new Color(0.06f, 0.07f, 0.09f, 0.6f),
+            normalColor = Color.white,
+            highlightedColor = new Color(1.18f, 1.18f, 1.18f, 1f),
+            pressedColor = new Color(0.78f, 0.82f, 0.86f, 1f),
+            selectedColor = Color.white,
+            disabledColor = new Color(0.48f, 0.48f, 0.48f, 0.65f),
             colorMultiplier = 1f,
             fadeDuration = 0.1f,
         };
@@ -168,10 +175,10 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform box = CreateRect("Checkbox", cardObject.transform);
         SetRect(
             box,
-            new Vector2(13f, -13f),
+            new Vector2(14f, 0f),
             new Vector2(24f, 24f),
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f));
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f));
         Image boxImage = box.gameObject.AddComponent<Image>();
         boxImage.color = new Color(0.025f, 0.035f, 0.05f, 1f);
         boxImage.raycastTarget = false;
@@ -192,52 +199,121 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
-            new Vector2(47f, -9f),
-            new Vector2(180f, 30f),
-            new Vector2(0f, 1f),
-            new Vector2(0f, 1f));
-
-        if (style == PuzzleCutStyle.FullyRandom)
-        {
-            CreateText(
-                "NoPreview",
-                cardObject.transform,
-                "SEM PREVIEW\ncombina arestas a cada partida",
-                14,
-                FontStyle.Italic,
-                MutedTextColor,
-                TextAnchor.MiddleCenter,
-                new Vector2(0f, -25f),
-                new Vector2(210f, 64f),
-                Vector2.one * 0.5f,
-                Vector2.one * 0.5f);
-        }
-        else
-        {
-            RectTransform previewRect = CreateRect("Preview", cardObject.transform);
-            SetRect(
-                previewRect,
-                new Vector2(0f, -22f),
-                new Vector2(128f, 76f),
-                Vector2.one * 0.5f,
-                Vector2.one * 0.5f);
-            ProceduralPuzzlePreviewGraphic preview =
-                previewRect.gameObject.AddComponent<ProceduralPuzzlePreviewGraphic>();
-            ProceduralPuzzleGeometry[,] board = ProceduralPuzzleGenerator.Create(
-                3,
-                style,
-                cutDepth,
-                3109 + (int)style * 97);
-            preview.Configure(board[1, 1], previewTexture);
-        }
+            new Vector2(50f, 0f),
+            new Vector2(158f, 40f),
+            new Vector2(0f, 0.5f),
+            new Vector2(0f, 0.5f));
 
         PuzzleCutStyle optionStyle = style;
         toggle.onValueChanged.AddListener(isOn =>
         {
-            if (isOn) selectedStyle = optionStyle;
+            background.color = isOn ? CardSelectedColor : CardColor;
+            if (!isOn) return;
+
+            selectedStyle = optionStyle;
+            UpdatePreview(optionStyle);
         });
         toggle.SetIsOnWithoutNotify(false);
         return toggle;
+    }
+
+    private void CreatePreviewPanel(RectTransform parent)
+    {
+        GameObject panelObject = CreateUiObject("PreviewPanel", parent);
+        RectTransform panel = (RectTransform)panelObject.transform;
+        SetRect(
+            panel,
+            new Vector2(-40f, -125f),
+            new Vector2(500f, 550f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 1f));
+        Image panelImage = panelObject.AddComponent<Image>();
+        panelImage.color = new Color(0.035f, 0.047f, 0.068f, 1f);
+        panelImage.raycastTarget = false;
+
+        RectTransform titleRect = CreateText(
+            "PreviewTitle",
+            panel,
+            string.Empty,
+            22,
+            FontStyle.Bold,
+            Color.white,
+            TextAnchor.MiddleCenter,
+            new Vector2(0f, -26f),
+            new Vector2(450f, 38f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f));
+        previewTitle = titleRect.GetComponent<Text>();
+
+        GameObject frameObject = CreateUiObject("PreviewFrame", panel);
+        RectTransform frame = (RectTransform)frameObject.transform;
+        SetRect(
+            frame,
+            new Vector2(0f, -75f),
+            new Vector2(440f, 400f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f));
+        Image frameImage = frameObject.AddComponent<Image>();
+        frameImage.color = new Color(0.012f, 0.017f, 0.025f, 1f);
+        frameImage.raycastTarget = false;
+
+        RectTransform previewRect = CreateRect("Preview", frame);
+        Stretch(previewRect);
+        previewRect.offsetMin = new Vector2(18f, 18f);
+        previewRect.offsetMax = new Vector2(-18f, -18f);
+        previewGraphic = previewRect.gameObject.AddComponent<ProceduralPuzzlePreviewGraphic>();
+        previewGraphic.gameObject.SetActive(false);
+
+        RectTransform noPreviewRect = CreateText(
+            "NoPreview",
+            frame,
+            "SEM PREVIEW\n\nEste modo combina formatos diferentes\nem cada aresta a cada partida.",
+            18,
+            FontStyle.Italic,
+            MutedTextColor,
+            TextAnchor.MiddleCenter,
+            Vector2.zero,
+            Vector2.zero,
+            Vector2.zero,
+            Vector2.zero);
+        Stretch(noPreviewRect);
+        noPreviewRect.offsetMin = new Vector2(30f, 30f);
+        noPreviewRect.offsetMax = new Vector2(-30f, -30f);
+        noPreviewMessage = noPreviewRect.gameObject;
+
+        CreateText(
+            "PreviewCaption",
+            panel,
+            "A prévia usa a imagem e a geometria da partida.",
+            15,
+            FontStyle.Normal,
+            MutedTextColor,
+            TextAnchor.MiddleCenter,
+            new Vector2(0f, 24f),
+            new Vector2(450f, 34f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f));
+    }
+
+    private void UpdatePreview(PuzzleCutStyle style)
+    {
+        if (!Enum.IsDefined(typeof(PuzzleCutStyle), style))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        if (previewGraphic == null || previewTitle == null || noPreviewMessage == null)
+            throw new InvalidOperationException("Cut selection preview panel is incomplete.");
+
+        previewTitle.text = LabelFor(style);
+        bool hasPreview = style != PuzzleCutStyle.FullyRandom;
+        previewGraphic.gameObject.SetActive(hasPreview);
+        noPreviewMessage.SetActive(!hasPreview);
+        if (!hasPreview) return;
+
+        ProceduralPuzzleGeometry[,] board = ProceduralPuzzleGenerator.Create(
+            3,
+            style,
+            cutDepth,
+            3109 + (int)style * 97);
+        previewGraphic.Configure(board[1, 1], previewTexture);
     }
 
     private Button CreateButton(RectTransform parent)
@@ -246,8 +322,8 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
         RectTransform rect = (RectTransform)buttonObject.transform;
         SetRect(
             rect,
-            new Vector2(0f, 35f),
-            new Vector2(280f, 58f),
+            new Vector2(260f, 28f),
+            new Vector2(300f, 58f),
             new Vector2(0.5f, 0f),
             new Vector2(0.5f, 0f));
         Image image = buttonObject.AddComponent<Image>();

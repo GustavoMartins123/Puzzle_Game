@@ -6,6 +6,8 @@ using UnityEngine.UI;
 [RequireComponent(typeof(CanvasRenderer))]
 public sealed class ProceduralPuzzlePreviewGraphic : MaskableGraphic
 {
+    private const float ContentScale = 0.9f;
+
     private ProceduralPuzzleGeometry geometry;
     private Texture2D previewTexture;
 
@@ -28,14 +30,15 @@ public sealed class ProceduralPuzzlePreviewGraphic : MaskableGraphic
         if (geometry == null) return;
 
         Rect rect = GetPixelAdjustedRect();
+        float side = Mathf.Min(rect.width, rect.height) * ContentScale;
+        Vector2 size = Vector2.one * side;
+        Vector2 center = rect.center;
         Color32 vertexColor = color;
         for (int i = 0; i < geometry.Vertices.Count; i++)
         {
             Vector2 normalized = geometry.Vertices[i];
             Vector2 textureUv = geometry.TextureUvs[i];
-            Vector2 position = new Vector2(
-                Mathf.Lerp(rect.xMin, rect.xMax, normalized.x),
-                Mathf.Lerp(rect.yMin, rect.yMax, normalized.y));
+            Vector2 position = center + Vector2.Scale(normalized - Vector2.one * 0.5f, size);
             vertexHelper.AddVert(position, vertexColor, textureUv);
         }
 
