@@ -6,13 +6,13 @@ using UnityEngine.UI;
 [RequireComponent(typeof(ProceduralPuzzleImage))]
 public class Slot : MonoBehaviour, IDropHandler
 {
-    [SerializeField] private ProceduralPuzzleImage image;
     [SerializeField] private SlotFeedback feedback;
 
     private RectTransform rectTransform;
     private DragLayer dragLayer;
     private Action<Slot> filled;
     private int id;
+    private ProceduralPuzzleImage image;
 
     public int Id => id;
 
@@ -20,7 +20,13 @@ public class Slot : MonoBehaviour, IDropHandler
 
     public SlotFeedback Feedback => feedback;
 
-    private void Awake() => rectTransform = (RectTransform)transform;
+    private void Awake()
+    {
+        rectTransform = (RectTransform)transform;
+        image = GetComponent<ProceduralPuzzleImage>();
+        if (image == null)
+            throw new InvalidOperationException("Slot requires a ProceduralPuzzleImage.");
+    }
 
     public void Setup(
         int id,
@@ -29,7 +35,6 @@ public class Slot : MonoBehaviour, IDropHandler
         DragLayer dragLayer,
         Action<Slot> filled)
     {
-        if (image == null) throw new InvalidOperationException("Slot requires a ProceduralPuzzleImage.");
         if (image.sprite == null) throw new InvalidOperationException("Slot requires a source sprite.");
         if (dragLayer == null) throw new ArgumentNullException(nameof(dragLayer));
 

@@ -354,6 +354,7 @@ MonoBehaviour:
   builder: {fileID: 100000003}
   dragLayer: {fileID: 240000002}
   menu: {fileID: 100000004}
+  selectionRoot: {fileID: 200000001}
 --- !u!114 &100000003
 MonoBehaviour:
   m_ObjectHideFlags: 0

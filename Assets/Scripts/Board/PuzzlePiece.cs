@@ -5,7 +5,6 @@ using UnityEngine.UI;
 [RequireComponent(typeof(ProceduralPuzzleImage))]
 public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    [SerializeField] private ProceduralPuzzleImage image;
     [SerializeField] private PieceFeedback feedback;
     [SerializeField] private float dropMargin = 0.05f;
 
@@ -17,6 +16,7 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private int id;
     private bool placed;
     private bool rejected;
+    private ProceduralPuzzleImage image;
 
     public int Id => id;
 
@@ -26,7 +26,13 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public Image Image => image;
 
-    private void Awake() => rectTransform = (RectTransform)transform;
+    private void Awake()
+    {
+        rectTransform = (RectTransform)transform;
+        image = GetComponent<ProceduralPuzzleImage>();
+        if (image == null)
+            throw new System.InvalidOperationException("PuzzlePiece requires a ProceduralPuzzleImage.");
+    }
 
     public void Setup(
         int id,
@@ -37,7 +43,6 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         DragLayer dragLayer,
         RectTransform tray)
     {
-        if (image == null) throw new System.InvalidOperationException("PuzzlePiece requires a ProceduralPuzzleImage.");
         if (dragLayer == null) throw new System.ArgumentNullException(nameof(dragLayer));
         if (tray == null) throw new System.ArgumentNullException(nameof(tray));
 

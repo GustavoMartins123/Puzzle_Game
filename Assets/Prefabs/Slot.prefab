@@ -89,7 +89,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbfaa185c99ecee4385ad108a33529c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  image: {fileID: 8124454772967732827}
   feedback: {fileID: 4410072318846620914}
 --- !u!114 &4410072318846620914
 MonoBehaviour:

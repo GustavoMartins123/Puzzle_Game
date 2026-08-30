@@ -27,7 +27,11 @@ public class BoardBuilder : MonoBehaviour
     private readonly List<Slot> slots = new List<Slot>();
     private int divisionsUsed;
 
-    public int Build(PuzzleConfig config, DragLayer dragLayer, Action<Slot> onSlotFilled)
+    public int Build(
+        PuzzleConfig config,
+        PuzzleCutStyle cutStyle,
+        DragLayer dragLayer,
+        Action<Slot> onSlotFilled)
     {
         if (config == null)
         {
@@ -47,6 +51,12 @@ public class BoardBuilder : MonoBehaviour
             return 0;
         }
 
+        if (!Enum.IsDefined(typeof(PuzzleCutStyle), cutStyle))
+        {
+            Debug.LogError($"BoardBuilder: invalid cut style value {(int)cutStyle}.", this);
+            return 0;
+        }
+
         Texture2D texture;
         PuzzleConfig.Layout layout;
         ProceduralPuzzleGeometry[,] geometries;
@@ -56,7 +66,7 @@ public class BoardBuilder : MonoBehaviour
             layout = config.PickLayout();
             geometries = ProceduralPuzzleGenerator.Create(
                 layout.divisions,
-                config.CutStyle,
+                cutStyle,
                 config.CutDepth,
                 config.CreateCutSeed());
         }
@@ -68,7 +78,7 @@ public class BoardBuilder : MonoBehaviour
 
         int divisions = layout.divisions;
         Vector2 cellSize = CalculateCellSize(texture, layout.cellSize);
-        float cutPadding = config.CutStyle == PuzzleCutStyle.Square ? 0f : config.CutDepth;
+        float cutPadding = cutStyle == PuzzleCutStyle.Square ? 0f : config.CutDepth;
         Sprite sourceSprite = Track(Sprite.Create(
             texture,
             new Rect(0f, 0f, texture.width, texture.height),

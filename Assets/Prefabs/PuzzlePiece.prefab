@@ -89,7 +89,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48f4d64e9380bd342ba4befbc33ccc32, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  image: {fileID: 1700748781626859650}
   feedback: {fileID: 1955043827640118372}
   dropMargin: 0.05
 --- !u!114 &1955043827640118372

@@ -26,3 +26,7 @@ redondos, elípticos, retangulares, hexagonais, triangulares, em diamante, ondul
 zigue-zague, com lóbulos, orgânicos, procedurais e totalmente aleatórios. Todos são
 gerados matematicamente em tempo de execução; arestas vizinhas são complementares,
 portanto a imagem montada continua inteira e sem distorção.
+
+Ao iniciar uma partida, a interface mostra caixas de seleção para todos os estilos.
+Cada formato fixo possui uma miniatura criada pelo próprio gerador procedural; o modo
+totalmente aleatório permanece selecionável, mas não exibe preview.

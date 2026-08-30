@@ -1,6 +1,9 @@
 using System;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public static class ProceduralPuzzleValidator
 {
@@ -29,9 +32,102 @@ public static class ProceduralPuzzleValidator
             }
         }
 
+        ValidateSelectionUi();
+        ValidateProceduralPrefabs();
+        ValidateGameScene();
+
         Debug.Log(
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
-            $"{piecesValidated} pieces across every cut style.");
+            $"{piecesValidated} pieces across every cut style; selection UI, prefabs, and scene are valid.");
+    }
+
+    private static void ValidateSelectionUi()
+    {
+        var canvasObject = new GameObject(
+            "ProceduralPuzzleUiValidation",
+            typeof(RectTransform),
+            typeof(Canvas));
+
+        try
+        {
+            PuzzleCutSelectionMenu menu = PuzzleCutSelectionMenu.Show(
+                (RectTransform)canvasObject.transform,
+                PuzzleCutStyle.FullyRandom,
+                CutDepth,
+                _ => true);
+            Canvas.ForceUpdateCanvases();
+
+            int styleCount = Enum.GetValues(typeof(PuzzleCutStyle)).Length;
+            Toggle[] toggles = menu.GetComponentsInChildren<Toggle>(true);
+            ProceduralPuzzlePreviewGraphic[] previews =
+                menu.GetComponentsInChildren<ProceduralPuzzlePreviewGraphic>(true);
+            Button[] buttons = menu.GetComponentsInChildren<Button>(true);
+
+            if (toggles.Length != styleCount)
+                throw new InvalidOperationException(
+                    $"Selection UI has {toggles.Length} toggles; expected {styleCount}.");
+            if (previews.Length != styleCount - 1)
+                throw new InvalidOperationException(
+                    $"Selection UI has {previews.Length} previews; expected {styleCount - 1}.");
+            if (buttons.Length != 1)
+                throw new InvalidOperationException(
+                    $"Selection UI has {buttons.Length} confirmation buttons; expected 1.");
+
+            Transform randomCard = menu.transform.Find("Panel/Options/FullyRandom");
+            if (randomCard == null)
+                throw new InvalidOperationException("Selection UI is missing the FullyRandom option.");
+            if (randomCard.Find("Preview") != null)
+                throw new InvalidOperationException("FullyRandom must not render a preview.");
+            if (randomCard.Find("NoPreview") == null)
+                throw new InvalidOperationException("FullyRandom must explain why it has no preview.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void ValidateProceduralPrefabs()
+    {
+        ValidatePrefab<PuzzlePiece>("Assets/Prefabs/PuzzlePiece.prefab");
+        ValidatePrefab<Slot>("Assets/Prefabs/Slot.prefab");
+    }
+
+    private static void ValidatePrefab<T>(string path) where T : Component
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (prefab == null)
+            throw new InvalidOperationException($"Prefab '{path}' could not be loaded.");
+        if (prefab.GetComponent<T>() == null)
+            throw new InvalidOperationException($"Prefab '{path}' is missing {typeof(T).Name}.");
+        if (prefab.GetComponent<ProceduralPuzzleImage>() == null)
+            throw new InvalidOperationException($"Prefab '{path}' is missing ProceduralPuzzleImage.");
+
+        var serializedComponent = new SerializedObject(prefab.GetComponent<T>());
+        if (serializedComponent.FindProperty("image") != null)
+            throw new InvalidOperationException(
+                $"Prefab component {typeof(T).Name} must not serialize an image reference.");
+    }
+
+    private static void ValidateGameScene()
+    {
+        Scene scene = EditorSceneManager.OpenScene("Assets/Scenes/Game.unity", OpenSceneMode.Single);
+        PuzzleController controller = null;
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            controller = root.GetComponentInChildren<PuzzleController>(true);
+            if (controller != null) break;
+        }
+
+        if (controller == null)
+            throw new InvalidOperationException("Game scene is missing PuzzleController.");
+
+        var serializedController = new SerializedObject(controller);
+        SerializedProperty selectionRoot = serializedController.FindProperty("selectionRoot");
+        if (selectionRoot == null || selectionRoot.objectReferenceValue == null)
+            throw new InvalidOperationException(
+                "Game scene PuzzleController is missing its selection UI root reference.");
     }
 
     private static int SeedCount(PuzzleCutStyle style)
