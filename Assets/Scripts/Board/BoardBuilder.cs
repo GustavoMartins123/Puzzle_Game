@@ -29,42 +29,73 @@ public class BoardBuilder : MonoBehaviour
 
     public int Build(PuzzleConfig config, DragLayer dragLayer, Action<Slot> onSlotFilled)
     {
-        if (config == null || !config.HasContent)
+        if (config == null)
         {
-            Debug.LogError($"BoardBuilder: assign a PuzzleConfig and put square images in {ImagesFolder}.", this);
+            Debug.LogError("BoardBuilder: assign a PuzzleConfig.", this);
             return 0;
         }
 
-        Texture2D texture = config.PickImage();
-        if (texture == null)
+        if (dragLayer == null)
         {
-            Debug.LogError($"BoardBuilder: the image library is out of date. Rescan {ImagesFolder}.", this);
+            Debug.LogError("BoardBuilder: assign a DragLayer.", this);
             return 0;
         }
 
-        PuzzleConfig.Layout layout = config.PickLayout();
+        if (!config.TryValidate(out string validationError))
+        {
+            Debug.LogError($"BoardBuilder: invalid configuration: {validationError}.", config);
+            return 0;
+        }
+
+        Texture2D texture;
+        PuzzleConfig.Layout layout;
+        ProceduralPuzzleGeometry[,] geometries;
+        try
+        {
+            texture = config.PickImage();
+            layout = config.PickLayout();
+            geometries = ProceduralPuzzleGenerator.Create(
+                layout.divisions,
+                config.CutStyle,
+                config.CutDepth,
+                config.CreateCutSeed());
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError($"BoardBuilder: puzzle generation failed: {exception.Message}", this);
+            return 0;
+        }
+
         int divisions = layout.divisions;
+        Vector2 cellSize = CalculateCellSize(texture, layout.cellSize);
+        float cutPadding = config.CutStyle == PuzzleCutStyle.Square ? 0f : config.CutDepth;
+        Sprite sourceSprite = Track(Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            Center));
 
-        reference.sprite = Track(Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), Center));
+        reference.sprite = sourceSprite;
+        reference.preserveAspect = true;
         grid.constraintCount = divisions;
-        grid.cellSize = new Vector2(layout.cellSize, layout.cellSize);
-
-        int pieceWidth = texture.width / divisions;
-        int pieceHeight = texture.height / divisions;
+        grid.cellSize = cellSize;
+        grid.spacing = Vector2.zero;
+        RectTransform gridRect = (RectTransform)grid.transform;
+        gridRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cellSize.x * divisions);
+        gridRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, cellSize.y * divisions);
 
         for (int y = 0; y < divisions; y++)
         {
             for (int x = 0; x < divisions; x++)
             {
                 int id = y * divisions + x;
-                Rect area = new Rect(x * pieceWidth, (divisions - 1 - y) * pieceHeight, pieceWidth, pieceHeight);
+                ProceduralPuzzleGeometry geometry = geometries[x, divisions - 1 - y];
 
                 PuzzlePiece piece = Instantiate(piecePrefab, tray, false);
-                piece.Setup(id, Track(Sprite.Create(texture, area, Center)), layout.cellSize, dragLayer, tray);
+                piece.Setup(id, sourceSprite, geometry, cellSize, cutPadding, dragLayer, tray);
                 piece.ScatterTo(RandomAnchor(), UnityEngine.Random.Range(-tilt, tilt));
 
                 Slot slot = Instantiate(slotPrefab, grid.transform, false);
-                slot.Setup(id, dragLayer, onSlotFilled);
+                slot.Setup(id, geometry, cutPadding, dragLayer, onSlotFilled);
                 slots.Add(slot);
             }
         }
@@ -100,6 +131,17 @@ public class BoardBuilder : MonoBehaviour
     {
         generated.Add(sprite);
         return sprite;
+    }
+
+    private static Vector2 CalculateCellSize(Texture2D texture, float maximumCellSide)
+    {
+        if (texture.width <= 0 || texture.height <= 0)
+            throw new InvalidOperationException("Puzzle image dimensions must be positive.");
+
+        float aspect = texture.width / (float)texture.height;
+        return aspect >= 1f
+            ? new Vector2(maximumCellSide, maximumCellSide / aspect)
+            : new Vector2(maximumCellSide * aspect, maximumCellSide);
     }
 
     private Vector2 RandomAnchor()

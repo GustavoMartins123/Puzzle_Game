@@ -3,10 +3,10 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(Image))]
+[RequireComponent(typeof(ProceduralPuzzleImage))]
 public class Slot : MonoBehaviour, IDropHandler
 {
-    [SerializeField] private Image image;
+    [SerializeField] private ProceduralPuzzleImage image;
     [SerializeField] private SlotFeedback feedback;
 
     private RectTransform rectTransform;
@@ -22,11 +22,25 @@ public class Slot : MonoBehaviour, IDropHandler
 
     private void Awake() => rectTransform = (RectTransform)transform;
 
-    public void Setup(int id, DragLayer dragLayer, Action<Slot> filled)
+    public void Setup(
+        int id,
+        ProceduralPuzzleGeometry geometry,
+        float cutPadding,
+        DragLayer dragLayer,
+        Action<Slot> filled)
     {
+        if (image == null) throw new InvalidOperationException("Slot requires a ProceduralPuzzleImage.");
+        if (image.sprite == null) throw new InvalidOperationException("Slot requires a source sprite.");
+        if (dragLayer == null) throw new ArgumentNullException(nameof(dragLayer));
+
         this.id = id;
         this.dragLayer = dragLayer;
         this.filled = filled;
+        image.Configure(
+            image.sprite,
+            geometry,
+            false,
+            Vector2.one * (1f + cutPadding * 2f));
     }
 
     public void OnDrop(PointerEventData eventData)

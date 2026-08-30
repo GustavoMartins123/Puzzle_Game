@@ -2,9 +2,10 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(ProceduralPuzzleImage))]
 public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    [SerializeField] private Image image;
+    [SerializeField] private ProceduralPuzzleImage image;
     [SerializeField] private PieceFeedback feedback;
     [SerializeField] private float dropMargin = 0.05f;
 
@@ -27,13 +28,24 @@ public class PuzzlePiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     private void Awake() => rectTransform = (RectTransform)transform;
 
-    public void Setup(int id, Sprite sprite, float cellSize, DragLayer dragLayer, RectTransform tray)
+    public void Setup(
+        int id,
+        Sprite sprite,
+        ProceduralPuzzleGeometry geometry,
+        Vector2 cellSize,
+        float cutPadding,
+        DragLayer dragLayer,
+        RectTransform tray)
     {
+        if (image == null) throw new System.InvalidOperationException("PuzzlePiece requires a ProceduralPuzzleImage.");
+        if (dragLayer == null) throw new System.ArgumentNullException(nameof(dragLayer));
+        if (tray == null) throw new System.ArgumentNullException(nameof(tray));
+
         this.id = id;
         this.dragLayer = dragLayer;
         this.tray = tray;
-        image.sprite = sprite;
-        rectTransform.sizeDelta = new Vector2(cellSize, cellSize);
+        image.Configure(sprite, geometry, true, Vector2.one);
+        rectTransform.sizeDelta = Vector2.Scale(cellSize, Vector2.one * (1f + cutPadding * 2f));
     }
 
     public void ScatterTo(Vector2 anchor, float tiltDegrees)

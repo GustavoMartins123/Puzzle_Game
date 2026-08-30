@@ -21,6 +21,10 @@ MonoBehaviour:
     cellSize: 150
   - divisions: 5
     cellSize: 120
+  cutStyle: 12
+  cutDepth: 0.22
+  useFixedCutSeed: 0
+  cutSeed: 1729
   imagePaths:
   - PuzzleImages/01_coral_reef
   - PuzzleImages/02_koi_pond
