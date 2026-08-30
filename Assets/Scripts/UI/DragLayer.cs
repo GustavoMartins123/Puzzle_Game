@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class DragLayer : MonoBehaviour
 {
-    [SerializeField] private float followSpeed = 30f;
-
     private RectTransform rectTransform;
     private PuzzlePiece held;
 
@@ -41,9 +39,10 @@ public class DragLayer : MonoBehaviour
         return piece;
     }
 
-    public void Follow(Vector2 pointerPosition)
+    public void Move(Vector2 pointerPosition)
     {
-        float t = 1f - Mathf.Exp(-followSpeed * Time.unscaledDeltaTime);
-        rectTransform.position = Vector2.Lerp(rectTransform.position, pointerPosition, t);
+        if (held == null)
+            throw new System.InvalidOperationException("DragLayer has no puzzle piece to move.");
+        rectTransform.position = pointerPosition;
     }
 }

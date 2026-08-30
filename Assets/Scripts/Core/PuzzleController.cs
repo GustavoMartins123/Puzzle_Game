@@ -24,6 +24,7 @@ public class PuzzleController : MonoBehaviour
     {
         input = new GameInput();
         input.PauseToggled += TogglePause;
+        input.RotationRequested += RotateHeldPiece;
         menu.Opened += CancelDrag;
         menu.RetryRequested += RetryCurrentSession;
         menu.OptionsRequested += ReturnToOptions;
@@ -64,7 +65,6 @@ public class PuzzleController : MonoBehaviour
     private void Update()
     {
         if (!started) return;
-        if (dragLayer.IsDragging) dragLayer.Follow(input.PointerPosition);
         if (transitioning || menu.IsOpen) return;
 
         metrics.Tick(Time.unscaledDeltaTime);
@@ -80,6 +80,7 @@ public class PuzzleController : MonoBehaviour
         if (input != null)
         {
             input.PauseToggled -= TogglePause;
+            input.RotationRequested -= RotateHeldPiece;
             input.Dispose();
         }
         if (hud != null) hud.Close();
@@ -154,6 +155,9 @@ public class PuzzleController : MonoBehaviour
                 metrics);
             if (hud == null) hud = PuzzleHud.Show(selectionRoot, UseHint);
             hud.Refresh(metrics, session.Difficulty, hints);
+            if (session.Difficulty.RotationEnabled)
+                hud.ShowStatus(
+                    "ROTAÇÃO: Q/E, botão direito ou ombros; no toque, toque breve na peça.");
             started = true;
             return true;
         }
@@ -263,7 +267,37 @@ public class PuzzleController : MonoBehaviour
 
     private void OnMoveStarted() => metrics.RecordMoveStarted();
 
-    private void OnIncorrectAttempt() => metrics.RecordIncorrectAttempt();
+    private void OnIncorrectAttempt(PuzzleDropFailure failure)
+    {
+        metrics.RecordIncorrectAttempt();
+        hud.ShowStatus(failure switch
+        {
+            PuzzleDropFailure.WrongSlot => "Esta peça pertence a outra região.",
+            PuzzleDropFailure.WrongRotation => "Posição correta: ajuste a rotação.",
+            _ => throw new System.ArgumentOutOfRangeException(nameof(failure)),
+        });
+    }
+
+    private void RotateHeldPiece(int direction)
+    {
+        if (!started || transitioning || menu.IsOpen) return;
+        PuzzlePiece piece = dragLayer.Held;
+        if (piece == null)
+        {
+            if (currentSession.Difficulty.RotationEnabled)
+                hud.ShowStatus("Segure uma peça para girar com Q/E, botão direito ou controle.");
+            return;
+        }
+
+        if (!piece.RotationEnabled)
+        {
+            hud.ShowStatus("Rotação desativada neste perfil.");
+            return;
+        }
+
+        piece.Rotate(direction);
+        hud.ShowStatus($"Rotação: {Mathf.RoundToInt(piece.RotationDegrees)}°.");
+    }
 
     private void UseHint()
     {
@@ -282,9 +316,10 @@ public class PuzzleController : MonoBehaviour
 
     private IEnumerator CelebrateThenFinish()
     {
+        PuzzleScoreBreakdown score = PuzzleScoreCalculator.Calculate(currentSession, metrics);
         float duration = builder.PlayCompletionWave();
         yield return new WaitForSecondsRealtime(duration + winDelay);
-        menu.ShowWin();
+        menu.ShowWin(score);
     }
 
     private void CancelDrag()

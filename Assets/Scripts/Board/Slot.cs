@@ -3,6 +3,12 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+public enum PuzzleDropFailure
+{
+    WrongSlot,
+    WrongRotation,
+}
+
 [RequireComponent(typeof(ProceduralPuzzleImage))]
 public class Slot : MonoBehaviour, IDropHandler
 {
@@ -11,7 +17,7 @@ public class Slot : MonoBehaviour, IDropHandler
     private RectTransform rectTransform;
     private DragLayer dragLayer;
     private Action<Slot> filled;
-    private Action incorrectAttempt;
+    private Action<PuzzleDropFailure> incorrectAttempt;
     private int id;
     private ProceduralPuzzleImage image;
 
@@ -35,7 +41,7 @@ public class Slot : MonoBehaviour, IDropHandler
         float cutPadding,
         DragLayer dragLayer,
         Action<Slot> filled,
-        Action incorrectAttempt)
+        Action<PuzzleDropFailure> incorrectAttempt)
     {
         if (image.sprite == null) throw new InvalidOperationException("Slot requires a source sprite.");
         if (dragLayer == null) throw new ArgumentNullException(nameof(dragLayer));
@@ -62,7 +68,15 @@ public class Slot : MonoBehaviour, IDropHandler
         {
             piece.MarkRejected();
             feedback.PlayRejected(image);
-            incorrectAttempt.Invoke();
+            incorrectAttempt.Invoke(PuzzleDropFailure.WrongSlot);
+            return;
+        }
+
+        if (!piece.IsRotationValid())
+        {
+            piece.MarkRejected();
+            feedback.PlayRotationRejected(image);
+            incorrectAttempt.Invoke(PuzzleDropFailure.WrongRotation);
             return;
         }
 

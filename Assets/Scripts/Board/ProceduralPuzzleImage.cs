@@ -74,14 +74,6 @@ public sealed class ProceduralPuzzleImage : Image
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 rectTransform, screenPoint, eventCamera, out Vector2 localPoint))
             return false;
-
-        Rect rect = rectTransform.rect;
-        Vector2 size = Vector2.Scale(rect.size, meshScale);
-        if (size.x <= 0f || size.y <= 0f) return false;
-
-        Vector2 normalized = new Vector2(
-            (localPoint.x - rect.center.x) / size.x + 0.5f,
-            (localPoint.y - rect.center.y) / size.y + 0.5f);
-        return geometry.Contains(normalized);
+        return rectTransform.rect.Contains(localPoint);
     }
 }

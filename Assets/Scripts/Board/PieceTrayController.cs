@@ -9,6 +9,15 @@ public enum PieceTrayLayoutMode
     BottomPanel,
 }
 
+public enum PieceTrayFilter
+{
+    All,
+    Corners,
+    Edges,
+    Interior,
+    Untried,
+}
+
 public readonly struct PieceTrayLayout
 {
     public PieceTrayLayout(
@@ -79,6 +88,8 @@ public sealed class PieceTrayController : MonoBehaviour
         new Dictionary<PuzzlePiece, TrayCell>();
     private readonly List<PageView> pages = new List<PageView>();
     private readonly List<GameObject> runtimeRoots = new List<GameObject>();
+    private readonly Dictionary<PieceTrayFilter, Button> filterButtons =
+        new Dictionary<PieceTrayFilter, Button>();
 
     private RectTransform root;
     private RectTransform board;
@@ -90,6 +101,7 @@ public sealed class PieceTrayController : MonoBehaviour
     private Font font;
     private PieceTrayLayout layout;
     private int currentPage;
+    private PieceTrayFilter currentFilter;
     private bool configured;
 
     public RectTransform Root
@@ -348,6 +360,7 @@ public sealed class PieceTrayController : MonoBehaviour
         else
             BuildBottomPanel(orderedPieces, maximumTilt, random);
 
+        BuildFilters();
         BuildNavigation();
         configured = true;
         currentPage = 0;
@@ -414,7 +427,37 @@ public sealed class PieceTrayController : MonoBehaviour
         if (!cellsByPiece.TryGetValue(piece, out TrayCell cell))
             throw new InvalidOperationException($"Piece {piece.name} is not pending in the tray.");
 
+        SetFilter(PieceTrayFilter.All);
         if (cell.PageIndex != currentPage) ApplyPage(cell.PageIndex);
+    }
+
+    public void NotifyAttempted(PuzzlePiece piece)
+    {
+        if (!configured) throw new InvalidOperationException("Piece tray is not configured.");
+        if (piece == null) throw new ArgumentNullException(nameof(piece));
+        if (activeDrag != piece)
+            throw new InvalidOperationException("Only the active piece can become attempted.");
+        if (!cellsByPiece.ContainsKey(piece))
+            throw new InvalidOperationException($"Piece {piece.name} has no tray cell.");
+        RefreshFilters();
+    }
+
+    public void RefreshPieceRotation(PuzzlePiece piece)
+    {
+        if (!configured) throw new InvalidOperationException("Piece tray is not configured.");
+        if (piece == null) throw new ArgumentNullException(nameof(piece));
+        if (!cellsByPiece.TryGetValue(piece, out TrayCell cell))
+            throw new InvalidOperationException($"Piece {piece.name} has no tray cell.");
+
+        if (activeDrag == piece)
+        {
+            piece.RectTransform.localRotation = Quaternion.Euler(0f, 0f, piece.RotationDegrees);
+            return;
+        }
+
+        if (activeDrag != null)
+            throw new InvalidOperationException("Another piece is active in the tray.");
+        piece.AttachToTrayCell(cell.RectTransform, layout.PieceScale, cell.TiltDegrees);
     }
 
     public void Clear()
@@ -422,6 +465,7 @@ public sealed class PieceTrayController : MonoBehaviour
         activeDrag = null;
         cellsByPiece.Clear();
         pages.Clear();
+        filterButtons.Clear();
 
         if (board != null) board.anchoredPosition = Vector2.zero;
         if (reference != null) reference.anchoredPosition = Vector2.zero;
@@ -436,6 +480,7 @@ public sealed class PieceTrayController : MonoBehaviour
         previousButton = null;
         nextButton = null;
         currentPage = 0;
+        currentFilter = PieceTrayFilter.All;
         configured = false;
     }
 
@@ -645,6 +690,109 @@ public sealed class PieceTrayController : MonoBehaviour
         pageLabel.raycastTarget = false;
     }
 
+    private void BuildFilters()
+    {
+        RectTransform bar = CreateRect("TrayFilters", Root);
+        runtimeRoots.Add(bar.gameObject);
+        SetRect(
+            bar,
+            new Vector2(0f, -82f),
+            new Vector2(700f, 44f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f));
+        Image background = bar.gameObject.AddComponent<Image>();
+        background.color = PanelColor;
+        background.raycastTarget = true;
+
+        PieceTrayFilter[] filters =
+        {
+            PieceTrayFilter.All,
+            PieceTrayFilter.Corners,
+            PieceTrayFilter.Edges,
+            PieceTrayFilter.Interior,
+            PieceTrayFilter.Untried,
+        };
+        string[] labels = { "TODAS", "CANTOS", "BORDAS", "INTERIOR", "NÃO TENTADAS" };
+        const float buttonWidth = 132f;
+        const float gap = 6f;
+        float totalWidth = filters.Length * buttonWidth + (filters.Length - 1) * gap;
+        float startX = (700f - totalWidth) * 0.5f;
+
+        for (int i = 0; i < filters.Length; i++)
+        {
+            PieceTrayFilter filter = filters[i];
+            RectTransform buttonRect = CreateRect(filter.ToString(), bar);
+            SetRect(
+                buttonRect,
+                new Vector2(startX + i * (buttonWidth + gap), 0f),
+                new Vector2(buttonWidth, 34f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f));
+            Image image = buttonRect.gameObject.AddComponent<Image>();
+            image.color = CellColor;
+            Button button = buttonRect.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(() => SetFilter(filter));
+
+            RectTransform labelRect = CreateRect("Label", buttonRect);
+            Stretch(labelRect);
+            Text text = labelRect.gameObject.AddComponent<Text>();
+            text.font = font;
+            text.text = labels[i];
+            text.fontSize = 13;
+            text.fontStyle = FontStyle.Bold;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.alignByGeometry = true;
+            text.raycastTarget = false;
+            filterButtons.Add(filter, button);
+        }
+
+        currentFilter = PieceTrayFilter.All;
+        RefreshFilters();
+    }
+
+    private void SetFilter(PieceTrayFilter filter)
+    {
+        if (!configured) throw new InvalidOperationException("Piece tray is not configured.");
+        if (!Enum.IsDefined(typeof(PieceTrayFilter), filter))
+            throw new ArgumentOutOfRangeException(nameof(filter));
+        if (activeDrag != null)
+            throw new InvalidOperationException("Cannot change filters while dragging a piece.");
+
+        currentFilter = filter;
+        int matchingPage = FindMatchingPage(0, 1);
+        if (matchingPage >= 0 && matchingPage != currentPage)
+            ApplyPage(matchingPage);
+        else
+            RefreshNavigation();
+    }
+
+    private void RefreshFilters()
+    {
+        foreach (KeyValuePair<PuzzlePiece, TrayCell> pair in cellsByPiece)
+            pair.Value.RectTransform.gameObject.SetActive(MatchesFilter(pair.Key));
+
+        foreach (KeyValuePair<PieceTrayFilter, Button> pair in filterButtons)
+        {
+            pair.Value.interactable = activeDrag == null;
+            pair.Value.targetGraphic.color = pair.Key == currentFilter
+                ? SelectedCellColor
+                : CellColor;
+        }
+    }
+
+    private bool MatchesFilter(PuzzlePiece piece) => currentFilter switch
+    {
+        PieceTrayFilter.All => true,
+        PieceTrayFilter.Corners => piece.Category == PuzzlePieceCategory.Corner,
+        PieceTrayFilter.Edges => piece.Category == PuzzlePieceCategory.Edge,
+        PieceTrayFilter.Interior => piece.Category == PuzzlePieceCategory.Interior,
+        PieceTrayFilter.Untried => !piece.Attempted,
+        _ => throw new InvalidOperationException($"Invalid tray filter {currentFilter}."),
+    };
+
     private Button CreateNavigationButton(
         RectTransform parent,
         string name,
@@ -684,9 +832,11 @@ public sealed class PieceTrayController : MonoBehaviour
         if (!configured) throw new InvalidOperationException("Piece tray is not configured.");
         if (activeDrag != null)
             throw new InvalidOperationException("Cannot change tray pages while dragging a piece.");
+        if (direction != -1 && direction != 1)
+            throw new ArgumentOutOfRangeException(nameof(direction));
 
-        int targetPage = currentPage + direction;
-        if (targetPage < 0 || targetPage >= layout.PageCount)
+        int targetPage = FindMatchingPage(currentPage + direction, direction);
+        if (targetPage < 0)
             throw new ArgumentOutOfRangeException(nameof(direction), "Requested tray page is invalid.");
         ApplyPage(targetPage);
     }
@@ -703,10 +853,30 @@ public sealed class PieceTrayController : MonoBehaviour
 
     private void RefreshNavigation()
     {
+        RefreshFilters();
         if (pageLabel == null || previousButton == null || nextButton == null) return;
         pageLabel.text = $"PÁGINA {currentPage + 1}/{layout.PageCount}";
-        previousButton.interactable = activeDrag == null && currentPage > 0;
-        nextButton.interactable = activeDrag == null && currentPage < layout.PageCount - 1;
+        previousButton.interactable =
+            activeDrag == null && FindMatchingPage(currentPage - 1, -1) >= 0;
+        nextButton.interactable =
+            activeDrag == null && FindMatchingPage(currentPage + 1, 1) >= 0;
+    }
+
+    private int FindMatchingPage(int startPage, int direction)
+    {
+        if (direction != -1 && direction != 1)
+            throw new ArgumentOutOfRangeException(nameof(direction));
+
+        for (int pageIndex = startPage;
+             pageIndex >= 0 && pageIndex < layout.PageCount;
+             pageIndex += direction)
+        {
+            foreach (KeyValuePair<PuzzlePiece, TrayCell> pair in cellsByPiece)
+                if (pair.Value.PageIndex == pageIndex && MatchesFilter(pair.Key))
+                    return pageIndex;
+        }
+
+        return -1;
     }
 
     private static bool IsPositiveFinite(Vector2 value) =>

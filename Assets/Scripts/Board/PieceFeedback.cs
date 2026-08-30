@@ -25,6 +25,10 @@ public class PieceFeedback : MonoBehaviour
     [SerializeField] private float selectedScale = 1.08f;
     [SerializeField] private float selectedDuration = 0.12f;
 
+    [Header("Rotation")]
+    [SerializeField] private float rotationPulse = 0.1f;
+    [SerializeField] private float rotationDuration = 0.2f;
+
     private RectTransform rectTransform;
     private Image image;
     private Color baseColor;
@@ -107,6 +111,21 @@ public class PieceFeedback : MonoBehaviour
             6,
             0.6f));
         sequence.OnComplete(Settle);
+    }
+
+    public void PlayRotation()
+    {
+        DOTween.Kill(rectTransform);
+        restRotation = rectTransform.localRotation;
+        restScale = rectTransform.localScale;
+        rectTransform.DOPunchScale(
+                restScale * rotationPulse,
+                rotationDuration,
+                4,
+                0.5f)
+            .SetUpdate(true)
+            .SetLink(gameObject)
+            .OnComplete(Settle);
     }
 
     private void Settle()

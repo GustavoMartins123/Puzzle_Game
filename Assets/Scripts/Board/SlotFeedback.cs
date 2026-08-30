@@ -22,6 +22,7 @@ public class SlotFeedback : MonoBehaviour
     [SerializeField] private Color rejectColor = new Color(1f, 0.35f, 0.32f, 1f);
     [SerializeField] private float rejectDuration = 0.35f;
     [SerializeField] private float rejectTilt = 9f;
+    [SerializeField] private Color rotationRejectColor = new Color(1f, 0.72f, 0.2f, 1f);
 
     [Header("Hint")]
     [SerializeField] private Color hintColor = new Color(0.3f, 1f, 0.82f, 1f);
@@ -92,6 +93,27 @@ public class SlotFeedback : MonoBehaviour
             .SetLoops(2, LoopType.Yoyo));
         sequence.Insert(0f, rectTransform
             .DOPunchRotation(new Vector3(0f, 0f, rejectTilt), rejectDuration, punchVibrato, 0.5f));
+        sequence.OnComplete(() =>
+        {
+            slotImage.color = slotColor;
+            rectTransform.localRotation = Quaternion.identity;
+        });
+    }
+
+    public void PlayRotationRejected(Image slotImage)
+    {
+        if (slotImage != this.slotImage)
+            throw new System.InvalidOperationException("SlotFeedback received a different slot image.");
+
+        ResetSlotVisual();
+        Sequence sequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject);
+        sequence.Insert(0f, slotImage.DOColor(rotationRejectColor, rejectDuration * 0.3f)
+            .SetLoops(2, LoopType.Yoyo));
+        sequence.Insert(0f, rectTransform.DOPunchRotation(
+            new Vector3(0f, 0f, rejectTilt * 2f),
+            rejectDuration,
+            punchVibrato,
+            0.5f));
         sequence.OnComplete(() =>
         {
             slotImage.color = slotColor;

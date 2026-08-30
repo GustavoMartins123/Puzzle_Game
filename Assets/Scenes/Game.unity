@@ -247,7 +247,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_FirstSelected: {fileID: 0}
   m_sendNavigationEvents: 1
-  m_DragThreshold: 10
+  m_DragThreshold: 4
 --- !u!4 &1500159614
 Transform:
   m_ObjectHideFlags: 0
@@ -727,7 +727,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92ffd7fabdbc2f34889d52b04d3ffe87, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  followSpeed: 30
 --- !u!1 &250000000
 GameObject:
   m_ObjectHideFlags: 0

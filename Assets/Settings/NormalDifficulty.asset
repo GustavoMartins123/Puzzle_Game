@@ -40,3 +40,6 @@ MonoBehaviour:
   hintAllowance: 2
   maximumHints: 3
   hintCooldown: 10
+  rotationEnabled: 0
+  rotationStepDegrees: 0
+  rotationToleranceDegrees: 0

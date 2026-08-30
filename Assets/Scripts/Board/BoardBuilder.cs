@@ -35,7 +35,7 @@ public class BoardBuilder : MonoBehaviour
         DragLayer dragLayer,
         Action<Slot> onSlotFilled,
         Action onMoveStarted,
-        Action onIncorrectAttempt)
+        Action<PuzzleDropFailure> onIncorrectAttempt)
     {
         if (dragLayer == null)
         {
@@ -87,6 +87,11 @@ public class BoardBuilder : MonoBehaviour
                 texture,
                 new Rect(0f, 0f, texture.width, texture.height),
                 Center));
+            var rotationRandom = new System.Random(
+                unchecked(session.TraySeed ^ (int)0x6D2B79F5));
+            int rotationStepCount = difficulty.RotationEnabled
+                ? Mathf.RoundToInt(360f / difficulty.RotationStepDegrees)
+                : 1;
 
             reference.sprite = sourceSprite;
             reference.preserveAspect = true;
@@ -109,6 +114,9 @@ public class BoardBuilder : MonoBehaviour
 
                     PuzzlePiece piece = Instantiate(piecePrefab, tray, false);
                     pieces.Add(piece);
+                    float initialRotation = difficulty.RotationEnabled
+                        ? rotationRandom.Next(rotationStepCount) * difficulty.RotationStepDegrees
+                        : 0f;
                     piece.Setup(
                         id,
                         sourceSprite,
@@ -117,6 +125,11 @@ public class BoardBuilder : MonoBehaviour
                         cutPadding,
                         dragLayer,
                         trayController,
+                        geometry.ClassifyByImageBoundary(),
+                        difficulty.RotationEnabled,
+                        difficulty.RotationStepDegrees,
+                        difficulty.RotationToleranceDegrees,
+                        initialRotation,
                         onMoveStarted);
 
                     Slot slot = Instantiate(slotPrefab, grid.transform, false);

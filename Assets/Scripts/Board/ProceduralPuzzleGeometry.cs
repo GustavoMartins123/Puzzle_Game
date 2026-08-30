@@ -2,6 +2,13 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum PuzzlePieceCategory
+{
+    Corner,
+    Edge,
+    Interior,
+}
+
 public sealed class ProceduralPuzzleGeometry
 {
     private readonly Vector2[] vertices;
@@ -39,6 +46,38 @@ public sealed class ProceduralPuzzleGeometry
         }
 
         return false;
+    }
+
+    public PuzzlePieceCategory ClassifyByImageBoundary()
+    {
+        const float epsilon = 0.00001f;
+        bool left = false;
+        bool right = false;
+        bool bottom = false;
+        bool top = false;
+
+        for (int i = 0; i < textureUvs.Length; i++)
+        {
+            Vector2 uv = textureUvs[i];
+            if (Mathf.Abs(uv.x) <= epsilon) left = true;
+            if (Mathf.Abs(uv.x - 1f) <= epsilon) right = true;
+            if (Mathf.Abs(uv.y) <= epsilon) bottom = true;
+            if (Mathf.Abs(uv.y - 1f) <= epsilon) top = true;
+        }
+
+        int boundaryCount =
+            (left ? 1 : 0) +
+            (right ? 1 : 0) +
+            (bottom ? 1 : 0) +
+            (top ? 1 : 0);
+        return boundaryCount switch
+        {
+            0 => PuzzlePieceCategory.Interior,
+            1 => PuzzlePieceCategory.Edge,
+            2 => PuzzlePieceCategory.Corner,
+            _ => throw new InvalidOperationException(
+                $"Puzzle geometry touches {boundaryCount} image boundaries."),
+        };
     }
 
     private static bool PointInTriangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c)

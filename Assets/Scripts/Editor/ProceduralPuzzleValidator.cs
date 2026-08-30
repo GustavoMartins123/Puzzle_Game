@@ -35,6 +35,7 @@ public static class ProceduralPuzzleValidator
         ValidateSelectionUi();
         ValidateSessionDefinitions();
         ValidateSessionMetrics();
+        ValidatePhaseFourRules();
         ValidateTrayLayouts();
         ValidateProceduralPrefabs();
         ValidateGameScene();
@@ -42,8 +43,9 @@ public static class ProceduralPuzzleValidator
         Debug.Log(
             $"Procedural puzzle validation passed: {boardsValidated} boards and " +
             $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
-            "retry image rotation, session metrics, selection UI, responsive trays, prefabs, " +
-            "and scene are valid.");
+            "retry image rotation, session metrics, deterministic scoring, optional piece " +
+            "rotation, geometric tray filters, selection UI, responsive trays, prefabs, and " +
+            "scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -131,6 +133,82 @@ public static class ProceduralPuzzleValidator
         metrics.Tick(5f);
         if (!Mathf.Approximately(metrics.ElapsedSeconds, 1.5f))
             throw new InvalidOperationException("Completed session time continued advancing.");
+    }
+
+    private static void ValidatePhaseFourRules()
+    {
+        PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+            "Assets/Settings/PuzzleConfig.asset");
+        if (config == null)
+            throw new InvalidOperationException(
+                "Phase four requires the puzzle configuration asset.");
+        if (!config.TryValidate(out string configError))
+            throw new InvalidOperationException(
+                $"Phase four requires a valid configuration: {configError}.");
+
+        PuzzleDifficultyProfile rotationProfile = null;
+        PuzzleDifficultyProfile fixedProfile = null;
+        for (int i = 0; i < config.DifficultyProfiles.Count; i++)
+        {
+            PuzzleDifficultyProfile profile = config.DifficultyProfiles[i];
+            if (profile.RotationEnabled) rotationProfile = profile;
+            else fixedProfile = profile;
+        }
+
+        if (rotationProfile == null || fixedProfile == null)
+            throw new InvalidOperationException(
+                "Phase four requires both rotation-enabled and fixed-orientation profiles.");
+
+        foreach (PuzzleCutStyle style in Enum.GetValues(typeof(PuzzleCutStyle)))
+            if (PuzzleScoreCalculator.ComplexityPercent(style) < 100)
+                throw new InvalidOperationException($"Style {style} has an invalid score complexity.");
+
+        var texture = new Texture2D(8, 8)
+        {
+            name = "PhaseFourScoreValidationTexture",
+            hideFlags = HideFlags.HideAndDontSave,
+        };
+        try
+        {
+            var session = new PuzzleSessionDefinition(
+                rotationProfile,
+                rotationProfile.Layouts[0],
+                rotationProfile.DefaultCutStyle,
+                texture,
+                7001,
+                7002);
+            int totalPieces = session.Layout.divisions * session.Layout.divisions;
+            var metrics = new PuzzleSessionMetrics();
+            metrics.Begin(totalPieces);
+            metrics.Tick(32.25f);
+            metrics.RecordIncorrectAttempt();
+            metrics.RecordHint();
+            for (int i = 0; i < totalPieces; i++) metrics.RecordCorrectPlacement();
+
+            PuzzleScoreBreakdown first = PuzzleScoreCalculator.Calculate(session, metrics);
+            PuzzleScoreBreakdown second = PuzzleScoreCalculator.Calculate(session, metrics);
+            if (first.Total != second.Total || first.BaseScore != second.BaseScore ||
+                first.ComplexityBonus != second.ComplexityBonus ||
+                first.RotationBonus != second.RotationBonus ||
+                first.ReferenceBonus != second.ReferenceBonus ||
+                first.TimePenalty != second.TimePenalty ||
+                first.ErrorPenalty != second.ErrorPenalty ||
+                first.HintPenalty != second.HintPenalty)
+                throw new InvalidOperationException("Score calculation is not deterministic.");
+            if (first.RotationBonus <= 0 || first.TimePenalty <= 0 ||
+                first.ErrorPenalty <= 0 || first.HintPenalty <= 0)
+                throw new InvalidOperationException("Score breakdown omitted an active component.");
+
+            string details = first.BuildDetails();
+            if (!details.Contains("Tempo") ||
+                !details.Contains("Tentativas incorretas") ||
+                !details.Contains("Dicas utilizadas"))
+                throw new InvalidOperationException("Score details omitted a visible penalty.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(texture);
+        }
     }
 
     private static void ValidateTrayLayouts()
@@ -551,12 +629,30 @@ public static class ProceduralPuzzleValidator
     {
         double area = 0d;
         float expandedSize = 1f + padding * 2f;
+        int corners = 0;
+        int edges = 0;
+        int interiors = 0;
 
         for (int y = 0; y < divisions; y++)
         {
             for (int x = 0; x < divisions; x++)
             {
                 ProceduralPuzzleGeometry geometry = board[x, y];
+                switch (geometry.ClassifyByImageBoundary())
+                {
+                    case PuzzlePieceCategory.Corner:
+                        corners++;
+                        break;
+                    case PuzzlePieceCategory.Edge:
+                        edges++;
+                        break;
+                    case PuzzlePieceCategory.Interior:
+                        interiors++;
+                        break;
+                    default:
+                        Fail(style, seed, divisions, x, y, "piece classification is invalid");
+                        break;
+                }
                 if (!geometry.Contains(Vector2.one * 0.5f))
                     Fail(style, seed, divisions, x, y, "piece does not contain its core center");
 
@@ -588,6 +684,16 @@ public static class ProceduralPuzzleValidator
             throw new InvalidOperationException(
                 $"{style}, seed {seed}, {divisions}x{divisions}: shared cuts changed total image area " +
                 $"from {expectedArea:F3} to {area:F3}.");
+
+        int expectedCorners = 4;
+        int expectedEdges = Math.Max(0, (divisions - 2) * 4);
+        int expectedInteriors = Math.Max(0, (divisions - 2) * (divisions - 2));
+        if (corners != expectedCorners || edges != expectedEdges ||
+            interiors != expectedInteriors)
+            throw new InvalidOperationException(
+                $"{style}, seed {seed}, {divisions}x{divisions}: classification returned " +
+                $"{corners} corners, {edges} edges, and {interiors} interiors; expected " +
+                $"{expectedCorners}, {expectedEdges}, and {expectedInteriors}.");
     }
 
     private static void Fail(

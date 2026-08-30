@@ -38,6 +38,9 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     [SerializeField] private PuzzleHintAllowance hintAllowance = PuzzleHintAllowance.Limited;
     [SerializeField, Min(0)] private int maximumHints = 3;
     [SerializeField, Min(0f)] private float hintCooldown = 10f;
+    [SerializeField] private bool rotationEnabled;
+    [SerializeField, Min(0f)] private float rotationStepDegrees;
+    [SerializeField, Min(0f)] private float rotationToleranceDegrees;
 
     public PuzzleDifficulty Difficulty => difficulty;
 
@@ -62,6 +65,12 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
     public int MaximumHints => maximumHints;
 
     public float HintCooldown => hintCooldown;
+
+    public bool RotationEnabled => rotationEnabled;
+
+    public float RotationStepDegrees => rotationStepDegrees;
+
+    public float RotationToleranceDegrees => rotationToleranceDegrees;
 
     public bool TryValidate(out string error)
     {
@@ -195,6 +204,44 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
             return false;
         }
 
+        if (!float.IsFinite(rotationStepDegrees) ||
+            !float.IsFinite(rotationToleranceDegrees))
+        {
+            error = "rotation values must be finite";
+            return false;
+        }
+
+        if (!rotationEnabled)
+        {
+            if (rotationStepDegrees != 0f || rotationToleranceDegrees != 0f)
+            {
+                error = "disabled rotation requires zero step and tolerance";
+                return false;
+            }
+        }
+        else
+        {
+            if (rotationStepDegrees <= 0f || rotationStepDegrees > 180f)
+            {
+                error = "rotation step must be greater than zero and at most 180 degrees";
+                return false;
+            }
+
+            float stepCount = 360f / rotationStepDegrees;
+            if (!Mathf.Approximately(stepCount, Mathf.Round(stepCount)))
+            {
+                error = "rotation step must divide 360 degrees exactly";
+                return false;
+            }
+
+            if (rotationToleranceDegrees <= 0f ||
+                rotationToleranceDegrees >= rotationStepDegrees * 0.5f)
+            {
+                error = "rotation tolerance must be positive and less than half the step";
+                return false;
+            }
+        }
+
         error = string.Empty;
         return true;
     }
@@ -254,7 +301,10 @@ public sealed class PuzzleDifficultyProfile : ScriptableObject
             ? $"{layouts[0].divisions}×{layouts[0].divisions}"
             : $"{layouts[0].divisions}×{layouts[0].divisions}–" +
               $"{layouts[layouts.Length - 1].divisions}×{layouts[layouts.Length - 1].divisions}";
+        string rotationSummary = rotationEnabled
+            ? $"rotação {Mathf.RoundToInt(rotationStepDegrees)}°"
+            : "sem rotação";
         return $"{layoutSummary}  •  referência {Mathf.RoundToInt(referenceOpacity * 100f)}%  •  " +
-               $"inclinação {Mathf.RoundToInt(initialTilt)}°";
+               $"inclinação {Mathf.RoundToInt(initialTilt)}°  •  {rotationSummary}";
     }
 }
