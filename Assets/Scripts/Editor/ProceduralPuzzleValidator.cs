@@ -37,6 +37,7 @@ public static class ProceduralPuzzleValidator
         ValidateSelectionUi();
         ValidateContentSelectionUi();
         ValidateAchievementPopupUi();
+        ValidateAchievementCenterUi();
         ValidateSessionDefinitions();
         ValidateSessionMetrics();
         ValidatePhaseFourRules();
@@ -51,7 +52,7 @@ public static class ProceduralPuzzleValidator
             "retry image rotation, session metrics, deterministic scoring, optional piece " +
             "rotation, geometric tray filters, content selection, versioned progression, " +
             "atomic SQLite persistence, schema migration, achievements, persistent notification " +
-            "pop-ups, responsive trays, prefabs, and scene are valid.");
+            "pop-ups, filtered achievement catalog, responsive trays, prefabs, and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -930,6 +931,114 @@ public static class ProceduralPuzzleValidator
         {
             UnityEngine.Object.DestroyImmediate(canvasObject);
         }
+    }
+
+    private static void ValidateAchievementCenterUi()
+    {
+        var canvasObject = new GameObject(
+            "PuzzleAchievementCenterValidation",
+            typeof(RectTransform),
+            typeof(Canvas));
+        try
+        {
+            PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+                "Assets/Settings/PuzzleConfig.asset");
+            if (config == null || config.Achievements.Count < 3)
+                throw new InvalidOperationException(
+                    "Achievement center validation requires at least three definitions.");
+
+            var catalog = new System.Collections.Generic.List<PuzzleAchievementCatalogEntry>
+            {
+                new PuzzleAchievementCatalogEntry(
+                    config.Achievements[0],
+                    config.Achievements[0].Target,
+                    DateTime.UtcNow),
+                new PuzzleAchievementCatalogEntry(config.Achievements[1], 1, null),
+                new PuzzleAchievementCatalogEntry(config.Achievements[2], 0, null),
+            };
+            int openedCount = 0;
+            PuzzleAchievementCenter center = PuzzleAchievementCenter.Show(
+                (RectTransform)canvasObject.transform,
+                () => catalog,
+                () => openedCount++);
+
+            Button launcher = center.transform
+                .Find("OpenAchievements")
+                ?.GetComponent<Button>();
+            if (launcher == null)
+                throw new InvalidOperationException(
+                    "Achievement center launcher is missing.");
+            launcher.onClick.Invoke();
+            Canvas.ForceUpdateCanvases();
+            if (!center.IsOpen || openedCount != 1 ||
+                center.CurrentFilter != PuzzleAchievementFilter.All ||
+                center.VisibleEntryCount != 3)
+                throw new InvalidOperationException(
+                    "Achievement center did not open with the complete catalog.");
+
+            ValidateAchievementCenterFilter(
+                center,
+                PuzzleAchievementFilter.Unlocked,
+                1);
+            ValidateAchievementCenterFilter(
+                center,
+                PuzzleAchievementFilter.InProgress,
+                1);
+            ValidateAchievementCenterFilter(
+                center,
+                PuzzleAchievementFilter.Locked,
+                1);
+
+            ScrollRect scroll = center.transform
+                .Find("Overlay/Panel/Viewport")
+                ?.GetComponent<ScrollRect>();
+            Text summary = center.transform
+                .Find("Overlay/Panel/Summary")
+                ?.GetComponent<Text>();
+            Button close = center.transform
+                .Find("Overlay/Panel/Close")
+                ?.GetComponent<Button>();
+            if (scroll == null || scroll.content == null || summary == null ||
+                !summary.text.Contains("1 / 3") || close == null)
+                throw new InvalidOperationException(
+                    "Achievement center list, summary, or close action is incomplete.");
+
+            foreach (Text text in center.GetComponentsInChildren<Text>(true))
+            {
+                if (text.fontSize < 14 || !text.alignByGeometry ||
+                    text.rectTransform.rect.width < 0f || text.rectTransform.rect.height < 0f)
+                    throw new InvalidOperationException(
+                        $"Achievement center text '{text.name}' has invalid rendering geometry.");
+            }
+
+            close.onClick.Invoke();
+            if (center.IsOpen || !launcher.gameObject.activeSelf)
+                throw new InvalidOperationException(
+                    "Achievement center did not restore its launcher after closing.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void ValidateAchievementCenterFilter(
+        PuzzleAchievementCenter center,
+        PuzzleAchievementFilter filter,
+        int expectedEntries)
+    {
+        Button button = center.transform
+            .Find($"Overlay/Panel/Filters/{filter}")
+            ?.GetComponent<Button>();
+        if (button == null)
+            throw new InvalidOperationException(
+                $"Achievement center filter '{filter}' is missing.");
+        button.onClick.Invoke();
+        Canvas.ForceUpdateCanvases();
+        if (center.CurrentFilter != filter || center.VisibleEntryCount != expectedEntries)
+            throw new InvalidOperationException(
+                $"Achievement center filter '{filter}' returned " +
+                $"{center.VisibleEntryCount} entries; expected {expectedEntries}.");
     }
 
     private static void ValidateDifficultySelection(

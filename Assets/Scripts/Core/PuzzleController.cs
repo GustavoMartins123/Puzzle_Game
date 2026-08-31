@@ -24,9 +24,10 @@ public class PuzzleController : MonoBehaviour
     private readonly PuzzleSessionMetrics metrics = new PuzzleSessionMetrics();
     private readonly PuzzleHintController hints = new PuzzleHintController();
     private PuzzleHud hud;
+    private PuzzleAchievementCenter achievementCenter;
     private PuzzleAchievementPopupQueue achievementPopups;
-    private bool started;
-    private bool transitioning;
+    [NonSerialized] private bool started;
+    [NonSerialized] private bool transitioning;
 
     private void Awake()
     {
@@ -69,6 +70,10 @@ public class PuzzleController : MonoBehaviour
             PuzzleDifficultyProfile difficulty =
                 config.GetDifficulty(progress.LastSelectedDifficulty);
             ShowContentSelection(difficulty, progress.LastSelectedCutStyle);
+            achievementCenter = PuzzleAchievementCenter.Show(
+                selectionRoot,
+                LoadAchievementCatalog,
+                CancelDrag);
             achievementPopups = PuzzleAchievementPopupQueue.Show(
                 selectionRoot,
                 AcknowledgeAchievementNotification);
@@ -88,8 +93,15 @@ public class PuzzleController : MonoBehaviour
 
     private void Update()
     {
-        if (!started || transitioning || menu.IsOpen ||
-            (achievementPopups != null && achievementPopups.IsOpen)) return;
+        if (!started) return;
+        if (!metrics.IsActive || currentSession == null)
+        {
+            FailClosedSession(
+                "A sessao ativa perdeu o estado interno de metricas. " +
+                "Reinicie a partida para continuar.");
+            return;
+        }
+        if (transitioning || menu.IsOpen || IsAchievementUiOpen) return;
 
         metrics.Tick(Time.unscaledDeltaTime);
         hints.Tick(Time.unscaledDeltaTime);
@@ -114,6 +126,11 @@ public class PuzzleController : MonoBehaviour
             progressStore = null;
         }
         if (hud != null) hud.Close();
+        if (achievementCenter != null)
+        {
+            achievementCenter.Close();
+            achievementCenter = null;
+        }
         if (achievementPopups != null)
         {
             achievementPopups.Close();
@@ -287,9 +304,12 @@ public class PuzzleController : MonoBehaviour
 
     private void TogglePause()
     {
-        if (started && !transitioning &&
-            (achievementPopups == null || !achievementPopups.IsOpen))
-            menu.TogglePause();
+        if (achievementCenter != null && achievementCenter.IsOpen)
+        {
+            achievementCenter.ClosePanel();
+            return;
+        }
+        if (started && !transitioning && !IsAchievementUiOpen) menu.TogglePause();
     }
 
     private void RetryCurrentSession()
@@ -454,8 +474,7 @@ public class PuzzleController : MonoBehaviour
 
     private void RotateHeldPiece(int direction)
     {
-        if (!started || transitioning || menu.IsOpen ||
-            (achievementPopups != null && achievementPopups.IsOpen)) return;
+        if (!started || transitioning || menu.IsOpen || IsAchievementUiOpen) return;
         PuzzlePiece piece = dragLayer.Held;
         if (piece == null)
         {
@@ -476,8 +495,7 @@ public class PuzzleController : MonoBehaviour
 
     private void UseHint()
     {
-        if (!started || transitioning || menu.IsOpen ||
-            (achievementPopups != null && achievementPopups.IsOpen))
+        if (!started || transitioning || menu.IsOpen || IsAchievementUiOpen)
             throw new InvalidOperationException("Hints require an active unpaused session.");
         if (dragLayer.IsDragging)
         {
@@ -532,12 +550,24 @@ public class PuzzleController : MonoBehaviour
             progressStore.GetPendingAchievementNotifications(config));
     }
 
+    private System.Collections.Generic.IReadOnlyList<PuzzleAchievementCatalogEntry>
+        LoadAchievementCatalog()
+    {
+        if (progressStore == null)
+            throw new InvalidOperationException("Progress store is not initialized.");
+        return progressStore.GetAchievementCatalog(config);
+    }
+
     private void AcknowledgeAchievementNotification(long notificationId)
     {
         if (progressStore == null)
             throw new InvalidOperationException("Progress store is not initialized.");
         progressStore.AcknowledgeAchievementNotification(notificationId);
     }
+
+    private bool IsAchievementUiOpen =>
+        (achievementCenter != null && achievementCenter.IsOpen) ||
+        (achievementPopups != null && achievementPopups.IsOpen);
 
     private void CancelDrag()
     {
@@ -553,5 +583,20 @@ public class PuzzleController : MonoBehaviour
         if (hud == null) return;
         hud.Close();
         hud = null;
+    }
+
+    private void FailClosedSession(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            throw new ArgumentException("A session failure message is required.", nameof(message));
+
+        Debug.LogError($"PuzzleController: {message}", this);
+        StopAllCoroutines();
+        transitioning = false;
+        CancelDrag();
+        builder.ClearBoard();
+        CloseSessionUi();
+        currentSession = null;
+        menu.ShowFailure("ERRO DE SESSAO", message);
     }
 }

@@ -111,8 +111,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             AccentColor,
             TextAnchor.MiddleCenter,
-            new Vector2(40f, -34f),
-            new Vector2(-40f, -78f));
+            new Vector2(40f, -78f),
+            new Vector2(-40f, -34f));
         eyebrow.raycastTarget = false;
 
         title = CreateText(
@@ -124,8 +124,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleCenter,
-            new Vector2(42f, -90f),
-            new Vector2(-42f, -152f));
+            new Vector2(42f, -152f),
+            new Vector2(-42f, -90f));
         description = CreateText(
             panel,
             "Description",
@@ -135,8 +135,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Normal,
             new Color(0.8f, 0.86f, 0.92f, 1f),
             TextAnchor.MiddleCenter,
-            new Vector2(62f, -158f),
-            new Vector2(-62f, -230f));
+            new Vector2(62f, -230f),
+            new Vector2(-62f, -158f));
         progress = CreateText(
             panel,
             "Progress",
@@ -146,8 +146,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             AccentColor,
             TextAnchor.MiddleCenter,
-            new Vector2(62f, -230f),
-            new Vector2(-62f, -266f));
+            new Vector2(62f, -266f),
+            new Vector2(-62f, -230f));
         error = CreateText(
             panel,
             "Error",
@@ -157,8 +157,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Normal,
             new Color(1f, 0.45f, 0.42f, 1f),
             TextAnchor.MiddleCenter,
-            new Vector2(44f, -270f),
-            new Vector2(-44f, -302f));
+            new Vector2(44f, -302f),
+            new Vector2(-44f, -270f));
 
         acknowledgeButton = CreateButton(panel, font);
         acknowledgeButton.onClick.AddListener(AcknowledgeCurrent);
@@ -178,8 +178,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
         progress.text = $"META CONCLUÍDA  {notification.Definition.Target:N0}/{notification.Definition.Target:N0}";
         error.text = string.Empty;
         acknowledgeButton.interactable = true;
+        transform.SetAsLastSibling();
         popupRoot.gameObject.SetActive(true);
-        popupRoot.SetAsLastSibling();
     }
 
     private void AcknowledgeCurrent()
