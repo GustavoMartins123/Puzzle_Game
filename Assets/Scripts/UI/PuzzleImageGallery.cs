@@ -148,8 +148,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
-            new Vector2(46f, -30f),
-            new Vector2(-160f, -86f));
+            new Vector2(46f, -86f),
+            new Vector2(-160f, -30f));
         summary = CreateText(
             panel,
             "Summary",
@@ -159,8 +159,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Normal,
             MutedColor,
             TextAnchor.MiddleLeft,
-            new Vector2(48f, -84f),
-            new Vector2(-48f, -116f));
+            new Vector2(48f, -116f),
+            new Vector2(-48f, -84f));
 
         Button close = CreateButton(
             panel,
@@ -244,8 +244,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
         }
 
         summary.text =
-            $"{unlockedCount:N0} / {total:N0} DESBLOQUEADAS   •   " +
-            $"{completedCount:N0} / {total:N0} CONCLUÍDAS";
+            $"{unlockedCount:N0} / {total:N0} DESBLOQUEADAS   â€¢   " +
+            $"{completedCount:N0} / {total:N0} CONCLUÃDAS";
     }
 
     private bool HasCompletions(PuzzleImageDefinition image)
@@ -310,16 +310,16 @@ public sealed class PuzzleImageGallery : MonoBehaviour
                 FontStyle.Bold,
                 LockedColor,
                 TextAnchor.MiddleCenter,
-                new Vector2(6f, -32f),
-                new Vector2(-6f, -66f));
+                new Vector2(6f, -66f),
+                new Vector2(-6f, -32f));
         }
 
         Color stateColor = completed
             ? AccentColor
             : unlocked ? ProgressColor : LockedColor;
         string state = completed
-            ? "CONCLUÍDA"
-            : unlocked ? "DISPONÍVEL" : $"BLOQUEADA • REQUER {image.RequiredUniqueCompletions}";
+            ? "CONCLUÃDA"
+            : unlocked ? "DISPONÃVEL" : $"BLOQUEADA â€¢ REQUER {image.RequiredUniqueCompletions}";
 
         CreateText(
             card,
@@ -330,8 +330,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Bold,
             unlocked ? Color.white : LockedColor,
             TextAnchor.MiddleLeft,
-            new Vector2(124f, -12f),
-            new Vector2(-20f, -44f));
+            new Vector2(124f, -44f),
+            new Vector2(-20f, -12f));
         CreateText(
             card,
             "State",
@@ -341,8 +341,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Bold,
             stateColor,
             TextAnchor.MiddleLeft,
-            new Vector2(124f, -46f),
-            new Vector2(-20f, -70f));
+            new Vector2(124f, -70f),
+            new Vector2(-20f, -46f));
         CreateText(
             card,
             "BestResult",
@@ -352,13 +352,13 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Normal,
             MutedColor,
             TextAnchor.MiddleLeft,
-            new Vector2(124f, -72f),
-            new Vector2(-20f, -104f));
+            new Vector2(124f, -104f),
+            new Vector2(-20f, -72f));
     }
 
     private string BuildBestResultLine(PuzzleImageDefinition image, bool unlocked)
     {
-        if (!unlocked) return "Continue concluindo quebra-cabeças para desbloquear.";
+        if (!unlocked) return "Continue concluindo quebra-cabeÃ§as para desbloquear.";
 
         int bestScore = 0;
         float bestSeconds = float.MaxValue;
@@ -382,9 +382,9 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             }
         }
 
-        if (!hasResult) return "Disponível para a primeira montagem.";
-        return $"CONCLUÍDA {completions:N0}×   •   MELHOR: {bestScore:N0} pts   •   " +
-               $"{bestSeconds:F1}s   •   {PuzzleMedalCalculator.Label(bestMedal)}";
+        if (!hasResult) return "DisponÃ­vel para a primeira montagem.";
+        return $"CONCLUÃDA {completions:N0}Ã—   â€¢   MELHOR: {bestScore:N0} pts   â€¢   " +
+               $"{bestSeconds:F1}s   â€¢   {PuzzleMedalCalculator.Label(bestMedal)}";
     }
 
     private void ClearRows()
@@ -434,8 +434,8 @@ public sealed class PuzzleImageGallery : MonoBehaviour
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleCenter,
-            new Vector2(8f, -14f),
-            new Vector2(-8f, -38f));
+            new Vector2(8f, -38f),
+            new Vector2(-8f, -14f));
         return button;
     }
 

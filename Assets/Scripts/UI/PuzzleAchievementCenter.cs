@@ -340,15 +340,18 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
             : entry.Definition.Description;
         Color stateColor = entry.IsUnlocked
             ? AccentColor
-            : entry.Progress > 0 ? ProgressColor : LockedColor;
+            : conceal ? LockedColor : entry.Progress > 0 ? ProgressColor : LockedColor;
         string state = entry.IsUnlocked
             ? "DESBLOQUEADA"
-            : entry.Progress > 0 ? "EM PROGRESSO" : "BLOQUEADA";
+            : conceal ? "SECRETA" : entry.Progress > 0 ? "EM PROGRESSO" : "BLOQUEADA";
+        string progressValue = conceal
+            ? "? / ?"
+            : $"{entry.Progress:N0} / {entry.Definition.Target:N0}";
 
         CreateText(
             card,
             "Title",
-            font,
+            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
             titleValue,
             20,
             FontStyle.Bold,
@@ -359,7 +362,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         CreateText(
             card,
             "Description",
-            font,
+            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
             descriptionValue,
             15,
             FontStyle.Normal,
@@ -370,7 +373,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         CreateText(
             card,
             "State",
-            font,
+            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
             state,
             14,
             FontStyle.Bold,
@@ -381,8 +384,8 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         CreateText(
             card,
             "ProgressValue",
-            font,
-            $"{entry.Progress:N0} / {entry.Definition.Target:N0}",
+            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
+            progressValue,
             15,
             FontStyle.Bold,
             stateColor,
@@ -399,11 +402,10 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         Image barBackground = bar.gameObject.AddComponent<Image>();
         barBackground.color = new Color(0.015f, 0.025f, 0.04f, 1f);
 
+        float fillFraction = conceal ? 0f : Mathf.Clamp01((float)entry.Progress / entry.Definition.Target);
         RectTransform fill = CreateRect(bar, "Fill");
         fill.anchorMin = Vector2.zero;
-        fill.anchorMax = new Vector2(
-            Mathf.Clamp01((float)entry.Progress / entry.Definition.Target),
-            1f);
+        fill.anchorMax = new Vector2(fillFraction, 1f);
         fill.offsetMin = Vector2.zero;
         fill.offsetMax = Vector2.zero;
         fill.gameObject.AddComponent<Image>().color = stateColor;
