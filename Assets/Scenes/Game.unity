@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 337620635}
   - component: {fileID: 337620634}
   - component: {fileID: 337620633}
+  - component: {fileID: 337620636}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -215,6 +216,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &337620636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 337620632}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3baf21fc6d7645d68d71e84314f6d520, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  scenarioShader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
+  orthographicSize: 5.625
+  backgroundColor: {r: 0.043, g: 0.067, b: 0.094, a: 1}
+  walnutColor: {r: 0.169, g: 0.129, b: 0.11, a: 1}
+  feltColor: {r: 0.071, g: 0.16, b: 0.153, a: 1}
+  frameColor: {r: 0.255, g: 0.176, b: 0.122, a: 1}
+  brassColor: {r: 0.64, g: 0.46, b: 0.2, a: 1}
+  ivoryColor: {r: 0.72, g: 0.68, b: 0.6, a: 1}
+  leafColor: {r: 0.18, g: 0.32, b: 0.22, a: 1}
 --- !u!1 &1500159611
 GameObject:
   m_ObjectHideFlags: 0

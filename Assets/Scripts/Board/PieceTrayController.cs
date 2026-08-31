@@ -78,11 +78,12 @@ public sealed class PieceTrayController : MonoBehaviour
     private const float MinimumCellExtent = 140f;
     private const float MinimumPieceScale = 0.28f;
 
-    private static readonly Color PanelColor = new Color(0.035f, 0.055f, 0.085f, 0.96f);
-    private static readonly Color CellColor = new Color(0.075f, 0.105f, 0.15f, 0.96f);
-    private static readonly Color SelectedCellColor = new Color(0.12f, 0.38f, 0.38f, 1f);
-    private static readonly Color EmptyCellColor = new Color(0.045f, 0.065f, 0.09f, 0.7f);
-    private static readonly Color AccentColor = new Color(0.25f, 0.92f, 0.78f, 1f);
+    private static readonly Color PanelColor = new Color(0.04f, 0.07f, 0.075f, 0.96f);
+    private static readonly Color CellColor = new Color(0.075f, 0.115f, 0.115f, 0.96f);
+    private static readonly Color SelectedCellColor = new Color(0.1f, 0.34f, 0.32f, 1f);
+    private static readonly Color EmptyCellColor = new Color(0.035f, 0.06f, 0.06f, 0.72f);
+    private static readonly Color AccentColor = new Color(0.12f, 0.72f, 0.64f, 1f);
+    private static readonly Color FurnitureFrameColor = new Color(0.32f, 0.22f, 0.15f, 0.9f);
 
     private readonly Dictionary<PuzzlePiece, TrayCell> cellsByPiece =
         new Dictionary<PuzzlePiece, TrayCell>();
@@ -577,6 +578,7 @@ public sealed class PieceTrayController : MonoBehaviour
         Image image = panelObject.AddComponent<Image>();
         image.color = PanelColor;
         image.raycastTarget = false;
+        AddFurnitureFrame(image, 3f);
         return panel;
     }
 
@@ -640,7 +642,11 @@ public sealed class PieceTrayController : MonoBehaviour
         background.color = CellColor;
         background.raycastTarget = false;
         Outline outline = cellRect.gameObject.AddComponent<Outline>();
-        outline.effectColor = new Color(AccentColor.r, AccentColor.g, AccentColor.b, 0.3f);
+        outline.effectColor = new Color(
+            FurnitureFrameColor.r,
+            FurnitureFrameColor.g,
+            FurnitureFrameColor.b,
+            0.42f);
         outline.effectDistance = Vector2.one;
         outline.useGraphicAlpha = true;
 
@@ -669,6 +675,7 @@ public sealed class PieceTrayController : MonoBehaviour
         Image background = navigation.gameObject.AddComponent<Image>();
         background.color = PanelColor;
         background.raycastTarget = true;
+        AddFurnitureFrame(background, 2f);
 
         previousButton = CreateNavigationButton(navigation, "Previous", "‹", false);
         nextButton = CreateNavigationButton(navigation, "Next", "›", true);
@@ -703,6 +710,7 @@ public sealed class PieceTrayController : MonoBehaviour
         Image background = bar.gameObject.AddComponent<Image>();
         background.color = PanelColor;
         background.raycastTarget = true;
+        AddFurnitureFrame(background, 2f);
 
         PieceTrayFilter[] filters =
         {
@@ -825,6 +833,18 @@ public sealed class PieceTrayController : MonoBehaviour
         text.alignByGeometry = true;
         text.raycastTarget = false;
         return button;
+    }
+
+    private static void AddFurnitureFrame(Image image, float distance)
+    {
+        if (image == null) throw new ArgumentNullException(nameof(image));
+        if (!float.IsFinite(distance) || distance <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(distance));
+
+        Outline outline = image.gameObject.AddComponent<Outline>();
+        outline.effectColor = FurnitureFrameColor;
+        outline.effectDistance = new Vector2(distance, -distance);
+        outline.useGraphicAlpha = true;
     }
 
     private void ChangePage(int direction)

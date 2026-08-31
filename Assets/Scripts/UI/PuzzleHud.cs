@@ -4,8 +4,9 @@ using UnityEngine.UI;
 
 public sealed class PuzzleHud : MonoBehaviour
 {
-    private static readonly Color PanelColor = new Color(0.035f, 0.055f, 0.085f, 0.97f);
+    private static readonly Color PanelColor = new Color(0.04f, 0.07f, 0.075f, 0.97f);
     private static readonly Color AccentColor = new Color(0.12f, 0.72f, 0.64f, 1f);
+    private static readonly Color FurnitureFrameColor = new Color(0.32f, 0.22f, 0.15f, 0.9f);
 
     private Text metricsLabel;
     private Text statusLabel;
@@ -31,7 +32,12 @@ public sealed class PuzzleHud : MonoBehaviour
         root.pivot = new Vector2(0.5f, 1f);
         root.anchoredPosition = new Vector2(0f, -12f);
         root.sizeDelta = new Vector2(920f, 64f);
-        rootObject.GetComponent<Image>().color = PanelColor;
+        Image rootImage = rootObject.GetComponent<Image>();
+        rootImage.color = PanelColor;
+        Outline frame = rootObject.AddComponent<Outline>();
+        frame.effectColor = FurnitureFrameColor;
+        frame.effectDistance = new Vector2(2f, -2f);
+        frame.useGraphicAlpha = true;
 
         PuzzleHud hud = rootObject.AddComponent<PuzzleHud>();
         hud.hintRequested = hintRequested;

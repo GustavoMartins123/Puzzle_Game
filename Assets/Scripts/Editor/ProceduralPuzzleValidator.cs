@@ -3,6 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -52,7 +53,8 @@ public static class ProceduralPuzzleValidator
             "retry image rotation, session metrics, deterministic scoring, optional piece " +
             "rotation, geometric tray filters, content selection, versioned progression, " +
             "atomic SQLite persistence, schema migration, achievements, persistent notification " +
-            "pop-ups, filtered achievement catalog, responsive trays, prefabs, and scene are valid.");
+            "pop-ups, filtered achievement catalog, modular cozy graybox, responsive trays, " +
+            "prefabs, and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -1258,9 +1260,131 @@ public static class ProceduralPuzzleValidator
             throw new InvalidOperationException(
                 "Game scene PuzzleController is missing its selection UI root reference.");
 
+        ValidateCozyScenario(scene);
+
         ValidateMenuButton(scene, "RetryButton", "Retry");
         ValidateMenuButton(scene, "OptionsButton", "BackToOptions");
         ValidateMenuButton(scene, "QuitButton", "Quit");
+    }
+
+    private static void ValidateCozyScenario(Scene scene)
+    {
+        CozyScenarioGraybox scenario = null;
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            scenario = root.GetComponentInChildren<CozyScenarioGraybox>(true);
+            if (scenario != null) break;
+        }
+        if (scenario == null)
+            throw new InvalidOperationException(
+                "Game scene is missing the modular cozy scenario graybox.");
+
+        Camera camera = scenario.GetComponent<Camera>();
+        if (camera == null || camera != Camera.main)
+            throw new InvalidOperationException(
+                "Cozy scenario must be owned by the canonical Main Camera.");
+        if (scenario.ScenarioShader == null)
+            throw new InvalidOperationException("Cozy scenario shader is not assigned.");
+
+        Vector3 originalPosition = camera.transform.position;
+        Quaternion originalRotation = camera.transform.rotation;
+        bool originalOrthographic = camera.orthographic;
+        float originalSize = camera.orthographicSize;
+        CameraClearFlags originalFlags = camera.clearFlags;
+        Color originalBackground = camera.backgroundColor;
+        AmbientMode originalAmbientMode = RenderSettings.ambientMode;
+        Color originalAmbientLight = RenderSettings.ambientLight;
+        float originalAmbientIntensity = RenderSettings.ambientIntensity;
+        float originalReflectionIntensity = RenderSettings.reflectionIntensity;
+
+        float[] aspects = { 16f / 9f, 16f / 10f, 4f / 3f };
+        try
+        {
+            scenario.BuildForValidation(aspects[0]);
+            Transform root = scenario.ScenarioRoot;
+            Transform surface = root.Find("TableModule/Surface");
+            Transform workMat = root.Find("TableModule/BoardRecess/WorkMatSurface");
+            Transform felt = root.Find("TableModule/BoardRecess/FeltSurface");
+            Transform frame = root.Find("TableModule/DecorativeFrame");
+            Transform boardFrame = root.Find("TableModule/BoardFrame");
+            Transform anchors = root.Find("DecorAnchors");
+            Transform lighting = root.Find("LightingRig");
+            if (surface == null || workMat == null || felt == null || frame == null ||
+                boardFrame == null || anchors == null || lighting == null ||
+                root.Find("AmbientVfx") == null ||
+                root.Find("AudioRig") == null)
+                throw new InvalidOperationException(
+                    "Cozy scenario hierarchy is incomplete or not modular.");
+            if (workMat.localScale.x <= felt.localScale.x ||
+                workMat.localScale.z <= felt.localScale.z)
+                throw new InvalidOperationException(
+                    "Cozy work mat must frame the complete puzzle play area.");
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            Light[] lights = root.GetComponentsInChildren<Light>(true);
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            if (renderers.Length < 19 || lights.Length != 2 || colliders.Length != 0)
+                throw new InvalidOperationException(
+                    $"Cozy scenario generated {renderers.Length} renderers, {lights.Length} " +
+                    $"lights, and {colliders.Length} colliders; expected at least 19, 2, and 0.");
+
+            for (int i = 0; i < aspects.Length; i++)
+            {
+                if (i > 0) scenario.ApplyAspectForValidation(aspects[i]);
+                ValidateCozyScenarioAspect(scenario, aspects[i], surface, anchors);
+            }
+        }
+        finally
+        {
+            if (scenario.IsBuilt) scenario.TearDownForValidation();
+        }
+
+        if (camera.transform.position != originalPosition ||
+            camera.transform.rotation != originalRotation ||
+            camera.orthographic != originalOrthographic ||
+            !Mathf.Approximately(camera.orthographicSize, originalSize) ||
+            camera.clearFlags != originalFlags || camera.backgroundColor != originalBackground ||
+            RenderSettings.ambientMode != originalAmbientMode ||
+            RenderSettings.ambientLight != originalAmbientLight ||
+            !Mathf.Approximately(RenderSettings.ambientIntensity, originalAmbientIntensity) ||
+            !Mathf.Approximately(RenderSettings.reflectionIntensity, originalReflectionIntensity))
+            throw new InvalidOperationException(
+                "Cozy scenario validation did not restore camera and lighting transactionally.");
+    }
+
+    private static void ValidateCozyScenarioAspect(
+        CozyScenarioGraybox scenario,
+        float expectedAspect,
+        Transform surface,
+        Transform anchors)
+    {
+        if (!Mathf.Approximately(scenario.CurrentAspect, expectedAspect))
+            throw new InvalidOperationException(
+                $"Cozy scenario did not apply aspect ratio {expectedAspect:0.###}.");
+
+        float expectedWidth = scenario.VisibleHalfWidth * 2f + 1f;
+        if (!Mathf.Approximately(surface.localScale.x, expectedWidth))
+            throw new InvalidOperationException(
+                $"Cozy table width {surface.localScale.x:0.###} does not match " +
+                $"visible width {expectedWidth:0.###}.");
+
+        string[] names = { "TopLeft", "TopRight", "BottomLeft", "BottomRight" };
+        for (int i = 0; i < names.Length; i++)
+        {
+            Transform anchor = anchors.Find(names[i]);
+            if (anchor == null)
+                throw new InvalidOperationException(
+                    $"Cozy scenario decor anchor '{names[i]}' is missing.");
+            float horizontalDistance = Mathf.Abs(anchor.localPosition.x);
+            float verticalDistance = Mathf.Abs(anchor.localPosition.z);
+            if (horizontalDistance <= scenario.PlayAreaHalfExtent + 1f ||
+                horizontalDistance + 1f >= scenario.VisibleHalfWidth ||
+                verticalDistance <= scenario.PlayAreaHalfExtent + 0.4f ||
+                verticalDistance + 1f >= 5.625f)
+                throw new InvalidOperationException(
+                    $"Cozy decor anchor '{names[i]}' is outside its safe frame at " +
+                    $"aspect {expectedAspect:0.###}.");
+        }
     }
 
     private static void ValidateMenuButton(Scene scene, string objectName, string methodName)
