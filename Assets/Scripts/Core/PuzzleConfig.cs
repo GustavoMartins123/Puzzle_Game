@@ -156,6 +156,7 @@ public class PuzzleConfig : ScriptableObject
     [SerializeField] private PuzzleCutStyleUnlock[] cutStyleUnlocks;
 
     [Header("Achievements")]
+    [SerializeField] private PuzzleAchievementVisuals achievementVisuals;
     [SerializeField] private PuzzleAchievementDefinition[] achievements;
 
     public IReadOnlyList<PuzzleDifficultyProfile> DifficultyProfiles => difficultyProfiles;
@@ -169,6 +170,9 @@ public class PuzzleConfig : ScriptableObject
     public string ImportCollectionId => importCollectionId;
 
     public IReadOnlyList<PuzzleAchievementDefinition> Achievements => achievements;
+
+    public PuzzleAchievementVisuals AchievementVisuals => achievementVisuals ??
+        throw new InvalidOperationException("Achievement visuals are not configured.");
 
     public int ImageCount
     {
@@ -366,6 +370,14 @@ public class PuzzleConfig : ScriptableObject
             error = "default cut style must be unlocked for a new profile";
             return false;
         }
+
+        if (achievementVisuals == null)
+        {
+            error = "achievement visuals are missing";
+            return false;
+        }
+        if (!achievementVisuals.TryValidate(out error))
+            return false;
 
         if (achievements == null || achievements.Length == 0)
         {

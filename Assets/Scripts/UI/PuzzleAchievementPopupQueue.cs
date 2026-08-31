@@ -18,8 +18,10 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
     private Text description;
     private Text progress;
     private Text error;
+    private RawImage medal;
     private Button acknowledgeButton;
     private Action<long> acknowledge;
+    private PuzzleAchievementVisuals visuals;
 
     public bool IsOpen => popupRoot != null && popupRoot.gameObject.activeSelf;
 
@@ -27,9 +29,13 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
 
     public static PuzzleAchievementPopupQueue Show(
         RectTransform parent,
+        PuzzleAchievementVisuals visuals,
         Action<long> acknowledge)
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
+        if (visuals == null) throw new ArgumentNullException(nameof(visuals));
+        if (!visuals.TryValidate(out string visualsError))
+            throw new InvalidOperationException($"Invalid achievement visuals: {visualsError}.");
         if (acknowledge == null) throw new ArgumentNullException(nameof(acknowledge));
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (font == null)
@@ -44,6 +50,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
 
         PuzzleAchievementPopupQueue queue = host.AddComponent<PuzzleAchievementPopupQueue>();
         queue.acknowledge = acknowledge;
+        queue.visuals = visuals;
         queue.Build(font, hostRect);
         queue.popupRoot.gameObject.SetActive(false);
         return queue;
@@ -99,8 +106,15 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
         panel.anchorMin = panel.anchorMax = Vector2.one * 0.5f;
         panel.pivot = Vector2.one * 0.5f;
         panel.anchoredPosition = Vector2.zero;
-        panel.sizeDelta = new Vector2(680f, 370f);
+        panel.sizeDelta = new Vector2(780f, 400f);
         panelObject.GetComponent<Image>().color = PanelColor;
+
+        medal = CreateRawImage(panel, "Medal");
+        RectTransform medalRect = medal.rectTransform;
+        medalRect.anchorMin = medalRect.anchorMax = Vector2.up;
+        medalRect.pivot = Vector2.up;
+        medalRect.anchoredPosition = new Vector2(48f, -92f);
+        medalRect.sizeDelta = new Vector2(156f, 156f);
 
         Text eyebrow = CreateText(
             panel,
@@ -111,7 +125,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             AccentColor,
             TextAnchor.MiddleCenter,
-            new Vector2(40f, -78f),
+            new Vector2(230f, -78f),
             new Vector2(-40f, -34f));
         eyebrow.raycastTarget = false;
 
@@ -124,7 +138,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleCenter,
-            new Vector2(42f, -152f),
+            new Vector2(230f, -152f),
             new Vector2(-42f, -90f));
         description = CreateText(
             panel,
@@ -135,8 +149,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Normal,
             new Color(0.8f, 0.86f, 0.92f, 1f),
             TextAnchor.MiddleCenter,
-            new Vector2(62f, -230f),
-            new Vector2(-62f, -158f));
+            new Vector2(230f, -238f),
+            new Vector2(-42f, -158f));
         progress = CreateText(
             panel,
             "Progress",
@@ -146,8 +160,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Bold,
             AccentColor,
             TextAnchor.MiddleCenter,
-            new Vector2(62f, -266f),
-            new Vector2(-62f, -230f));
+            new Vector2(230f, -278f),
+            new Vector2(-42f, -238f));
         error = CreateText(
             panel,
             "Error",
@@ -157,8 +171,8 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             FontStyle.Normal,
             new Color(1f, 0.45f, 0.42f, 1f),
             TextAnchor.MiddleCenter,
-            new Vector2(44f, -302f),
-            new Vector2(-44f, -270f));
+            new Vector2(44f, -326f),
+            new Vector2(-44f, -292f));
 
         acknowledgeButton = CreateButton(panel, font);
         acknowledgeButton.onClick.AddListener(AcknowledgeCurrent);
@@ -173,6 +187,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
         }
 
         PuzzleAchievementNotification notification = notifications.Peek();
+        medal.texture = visuals.GetMedal(notification.Definition.Tier);
         title.text = notification.Definition.Title;
         description.text = notification.Definition.Description;
         progress.text = $"META CONCLUÍDA  {notification.Definition.Target:N0}/{notification.Definition.Target:N0}";
@@ -245,6 +260,17 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             Vector2.zero);
         Stretch(label.rectTransform);
         return button;
+    }
+
+    private static RawImage CreateRawImage(RectTransform parent, string name)
+    {
+        var imageObject = new GameObject(name, typeof(RectTransform), typeof(RawImage));
+        imageObject.layer = parent.gameObject.layer;
+        RectTransform rect = (RectTransform)imageObject.transform;
+        rect.SetParent(parent, false);
+        RawImage image = imageObject.GetComponent<RawImage>();
+        image.raycastTarget = false;
+        return image;
     }
 
     private static Text CreateText(

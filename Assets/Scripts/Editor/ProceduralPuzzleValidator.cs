@@ -901,6 +901,7 @@ public static class ProceduralPuzzleValidator
             long acknowledgedId = 0;
             PuzzleAchievementPopupQueue popup = PuzzleAchievementPopupQueue.Show(
                 (RectTransform)canvasObject.transform,
+                config.AchievementVisuals,
                 id => acknowledgedId = id);
             popup.Enqueue(new[]
             {
@@ -914,11 +915,16 @@ public static class ProceduralPuzzleValidator
             Text title = popup.transform
                 .Find("Backdrop/Panel/Title")
                 ?.GetComponent<Text>();
+            RawImage medal = popup.transform
+                .Find("Backdrop/Panel/Medal")
+                ?.GetComponent<RawImage>();
             Button acknowledge = popup.transform
                 .Find("Backdrop/Panel/Acknowledge")
                 ?.GetComponent<Button>();
             if (!popup.IsOpen || popup.PendingCount != 1 || title == null ||
-                title.text != config.Achievements[0].Title || acknowledge == null)
+                title.text != config.Achievements[0].Title || medal == null ||
+                medal.texture != config.AchievementVisuals.GetMedal(
+                    config.Achievements[0].Tier) || acknowledge == null)
                 throw new InvalidOperationException(
                     "Achievement popup did not present its queued definition.");
 
@@ -959,15 +965,20 @@ public static class ProceduralPuzzleValidator
             int openedCount = 0;
             PuzzleAchievementCenter center = PuzzleAchievementCenter.Show(
                 (RectTransform)canvasObject.transform,
+                config.AchievementVisuals,
                 () => catalog,
                 () => openedCount++);
 
             Button launcher = center.transform
                 .Find("OpenAchievements")
                 ?.GetComponent<Button>();
-            if (launcher == null)
+            RawImage launcherIcon = center.transform
+                .Find("OpenAchievements/Icon")
+                ?.GetComponent<RawImage>();
+            if (launcher == null || launcherIcon == null ||
+                launcherIcon.texture != config.AchievementVisuals.Unlocked)
                 throw new InvalidOperationException(
-                    "Achievement center launcher is missing.");
+                    "Achievement center launcher or its configured icon is missing.");
             launcher.onClick.Invoke();
             Canvas.ForceUpdateCanvases();
             if (!center.IsOpen || openedCount != 1 ||
@@ -975,6 +986,13 @@ public static class ProceduralPuzzleValidator
                 center.VisibleEntryCount != 3)
                 throw new InvalidOperationException(
                     "Achievement center did not open with the complete catalog.");
+            RawImage unlockedIcon = center.transform
+                .Find($"Overlay/Panel/Viewport/Content/{config.Achievements[0].Id}/Icon")
+                ?.GetComponent<RawImage>();
+            if (unlockedIcon == null || unlockedIcon.texture !=
+                config.AchievementVisuals.GetMedal(config.Achievements[0].Tier))
+                throw new InvalidOperationException(
+                    "Achievement center did not use the configured unlocked medal.");
 
             ValidateAchievementCenterFilter(
                 center,
@@ -988,6 +1006,12 @@ public static class ProceduralPuzzleValidator
                 center,
                 PuzzleAchievementFilter.Locked,
                 1);
+            RawImage lockedIcon = center.transform
+                .Find($"Overlay/Panel/Viewport/Content/{config.Achievements[2].Id}/Icon")
+                ?.GetComponent<RawImage>();
+            if (lockedIcon == null || lockedIcon.texture != config.AchievementVisuals.Locked)
+                throw new InvalidOperationException(
+                    "Achievement center did not use the configured locked icon.");
 
             ScrollRect scroll = center.transform
                 .Find("Overlay/Panel/Viewport")

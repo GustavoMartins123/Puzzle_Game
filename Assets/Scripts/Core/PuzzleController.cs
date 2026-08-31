@@ -73,6 +73,7 @@ public class PuzzleController : MonoBehaviour
             ShowContentSelection(difficulty, progress.LastSelectedCutStyle);
             achievementCenter = PuzzleAchievementCenter.Show(
                 selectionRoot,
+                config.AchievementVisuals,
                 LoadAchievementCatalog,
                 CancelDrag);
             imageGallery = PuzzleImageGallery.Show(
@@ -82,6 +83,7 @@ public class PuzzleController : MonoBehaviour
                 CancelDrag);
             achievementPopups = PuzzleAchievementPopupQueue.Show(
                 selectionRoot,
+                config.AchievementVisuals,
                 AcknowledgeAchievementNotification);
             ShowPendingAchievementNotifications();
         }

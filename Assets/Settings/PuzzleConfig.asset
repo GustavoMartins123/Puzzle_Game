@@ -245,6 +245,13 @@ MonoBehaviour:
     requiredUniqueCompletions: 9
   - style: 12
     requiredUniqueCompletions: 12
+  achievementVisuals:
+    unlocked: {fileID: 2800000, guid: 7fe2e135d8190334299601995fe36763, type: 3}
+    locked: {fileID: 2800000, guid: 220552c51ef01744bab84c1725356e72, type: 3}
+    secret: {fileID: 2800000, guid: e08d7eba275abd84e8a446294003873a, type: 3}
+    bronze: {fileID: 2800000, guid: c1450251fbdb0dc4aac2b979833f1da9, type: 3}
+    silver: {fileID: 2800000, guid: d45f1eb5f7baca34caf447dff85590dd, type: 3}
+    gold: {fileID: 2800000, guid: 7436b41b3e0120048943e6e733084b33, type: 3}
   achievements:
   - id: first_puzzle
     title: PRIMEIRO ENCAIXE
@@ -255,6 +262,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: getting_started
     title: PEGANDO O RITMO
     description: Complete 5 quebra-cabeças.
@@ -264,6 +272,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: veteran
     title: MONTADOR VETERANO
     description: Complete 25 quebra-cabeças.
@@ -273,6 +282,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: centurion
     title: CENTURIÃO
     description: Complete 100 quebra-cabeças.
@@ -282,6 +292,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: collector
     title: COLECIONADOR
     description: Complete 10 imagens diferentes.
@@ -291,6 +302,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: curator
     title: CURADOR
     description: Complete 25 imagens diferentes.
@@ -300,6 +312,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: complete_gallery
     title: GALERIA COMPLETA
     description: Complete todas as 45 imagens.
@@ -309,6 +322,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 1
+    tier: 2
   - id: perfect_finish
     title: MONTAGEM PERFEITA
     description: Termine uma partida sem erros e sem dicas.
@@ -318,6 +332,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: perfectionist
     title: PERFECCIONISTA
     description: Termine 10 partidas sem erros e sem dicas.
@@ -327,6 +342,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: self_sufficient
     title: AUTOSSUFICIENTE
     description: Termine 10 partidas sem utilizar dicas.
@@ -336,6 +352,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: normal_master
     title: MESTRE DO NORMAL
     description: Complete 10 partidas na dificuldade Normal.
@@ -345,6 +362,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: expert_master
     title: MESTRE ESPECIALISTA
     description: Complete 10 partidas na dificuldade Especialista.
@@ -354,6 +372,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: proceduralist
     title: PROCEDURALISTA
     description: Complete 5 partidas com o formato Procedural.
@@ -363,6 +382,7 @@ MonoBehaviour:
     cutStyle: 11
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: chaos_master
     title: MESTRE DO CAOS
     description: Complete 5 partidas no modo Totalmente Aleatório.
@@ -372,6 +392,7 @@ MonoBehaviour:
     cutStyle: 12
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: high_scorer
     title: PONTUAÇÃO LENDÁRIA
     description: Alcance 50.000 pontos em uma única partida.
@@ -381,6 +402,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: speedrunner
     title: CONTRA O RELÓGIO
     description: Complete 3 partidas em até 2 minutos cada.
@@ -390,6 +412,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 120
     hidden: 0
+    tier: 1
   - id: casual_warmup
     title: AQUECIMENTO
     description: Complete 5 partidas na dificuldade Casual.
@@ -399,6 +422,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: normal_adept
     title: NA MEDIDA
     description: Complete 3 partidas na dificuldade Normal.
@@ -408,6 +432,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: expert_ambition
     title: RUMO AO ESPECIALISTA
     description: Complete 1 partida na dificuldade Especialista.
@@ -417,6 +442,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: expert_legend
     title: LENDA ESPECIALISTA
     description: Complete 25 partidas na dificuldade Especialista.
@@ -426,6 +452,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: curious_mind
     title: MENTE CURIOSA
     description: Complete 3 imagens diferentes.
@@ -435,6 +462,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: half_gallery
     title: METADE DA GALERIA
     description: Complete 20 imagens diferentes.
@@ -444,6 +472,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: geometrist
     title: GEOMETRA
     description: Complete 5 partidas com o formato Hexágono.
@@ -453,6 +482,7 @@ MonoBehaviour:
     cutStyle: 4
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: wave_rider
     title: DOMADOR DE ONDAS
     description: Complete 3 partidas com o formato Ondulado.
@@ -462,6 +492,7 @@ MonoBehaviour:
     cutStyle: 7
     maximumSeconds: 0
     hidden: 0
+    tier: 0
   - id: organic_lover
     title: NATUREZA ORGÂNICA
     description: Complete 10 partidas com o formato Orgânico.
@@ -471,6 +502,7 @@ MonoBehaviour:
     cutStyle: 10
     maximumSeconds: 0
     hidden: 0
+    tier: 1
   - id: marathon
     title: MARATONISTA
     description: Complete 50 quebra-cabeças.
@@ -480,6 +512,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 0
+    tier: 2
   - id: flawless_master
     title: IMACULADO
     description: Termine 25 partidas sem erros e sem dicas.
@@ -489,6 +522,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 1
+    tier: 2
   - id: mythic_score
     title: PONTUAÇÃO MÍTICA
     description: Alcance 100.000 pontos em uma única partida.
@@ -498,6 +532,7 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 0
     hidden: 1
+    tier: 2
   - id: lightning_hand
     title: MÃOS DE RELÂMPAGO
     description: Complete 1 partida em até 60 segundos.
@@ -507,3 +542,4 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 60
     hidden: 0
+    tier: 2

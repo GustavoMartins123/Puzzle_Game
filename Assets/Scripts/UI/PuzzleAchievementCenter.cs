@@ -26,6 +26,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
     private Func<IReadOnlyList<PuzzleAchievementCatalogEntry>> loadCatalog;
     private Action opened;
     private Font font;
+    private PuzzleAchievementVisuals visuals;
     private RectTransform overlay;
     private GameObject launcher;
     private RectTransform content;
@@ -49,10 +50,14 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
 
     public static PuzzleAchievementCenter Show(
         RectTransform parent,
+        PuzzleAchievementVisuals visuals,
         Func<IReadOnlyList<PuzzleAchievementCatalogEntry>> loadCatalog,
         Action opened)
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
+        if (visuals == null) throw new ArgumentNullException(nameof(visuals));
+        if (!visuals.TryValidate(out string visualsError))
+            throw new InvalidOperationException($"Invalid achievement visuals: {visualsError}.");
         if (loadCatalog == null) throw new ArgumentNullException(nameof(loadCatalog));
         if (opened == null) throw new ArgumentNullException(nameof(opened));
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -70,6 +75,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         center.loadCatalog = loadCatalog;
         center.opened = opened;
         center.font = font;
+        center.visuals = visuals;
         center.Build(font, hostRect);
         center.overlay.gameObject.SetActive(false);
         return center;
@@ -157,18 +163,31 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
 
     private void Build(Font font, RectTransform parent)
     {
-        launcher = CreateButton(
+        Button launcherButton = CreateButton(
             parent,
             "OpenAchievements",
             font,
             "CONQUISTAS",
             AccentColor,
-            Open).gameObject;
+            Open);
+        launcher = launcherButton.gameObject;
         RectTransform launcherRect = (RectTransform)launcher.transform;
         launcherRect.anchorMin = launcherRect.anchorMax = Vector2.one;
         launcherRect.pivot = Vector2.one;
         launcherRect.anchoredPosition = new Vector2(-18f, -18f);
         launcherRect.sizeDelta = new Vector2(210f, 52f);
+        RawImage launcherIcon = CreateRawImage(
+            launcherRect,
+            "Icon",
+            visuals.Unlocked);
+        RectTransform launcherIconRect = launcherIcon.rectTransform;
+        launcherIconRect.anchorMin = launcherIconRect.anchorMax = new Vector2(0f, 0.5f);
+        launcherIconRect.pivot = new Vector2(0f, 0.5f);
+        launcherIconRect.anchoredPosition = new Vector2(8f, 0f);
+        launcherIconRect.sizeDelta = new Vector2(38f, 38f);
+        Text launcherLabel = launcherRect.Find("Label")?.GetComponent<Text>() ??
+            throw new InvalidOperationException("Achievement launcher label is missing.");
+        launcherLabel.rectTransform.offsetMin = new Vector2(48f, 0f);
 
         var overlayObject = new GameObject(
             "Overlay",
@@ -342,38 +361,48 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
             ? AccentColor
             : conceal ? LockedColor : entry.Progress > 0 ? ProgressColor : LockedColor;
         string state = entry.IsUnlocked
-            ? "DESBLOQUEADA"
+            ? $"{TierLabel(entry.Definition.Tier)}  •  DESBLOQUEADA"
             : conceal ? "SECRETA" : entry.Progress > 0 ? "EM PROGRESSO" : "BLOQUEADA";
         string progressValue = conceal
             ? "? / ?"
             : $"{entry.Progress:N0} / {entry.Definition.Target:N0}";
 
+        RawImage icon = CreateRawImage(
+            card,
+            "Icon",
+            visuals.GetCatalogIcon(entry.Definition, entry.IsUnlocked));
+        RectTransform iconRect = icon.rectTransform;
+        iconRect.anchorMin = iconRect.anchorMax = new Vector2(0f, 0.5f);
+        iconRect.pivot = new Vector2(0f, 0.5f);
+        iconRect.anchoredPosition = new Vector2(18f, 0f);
+        iconRect.sizeDelta = new Vector2(92f, 92f);
+
         CreateText(
             card,
             "Title",
-            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
+            font,
             titleValue,
             20,
             FontStyle.Bold,
             Color.white,
             TextAnchor.MiddleLeft,
-            new Vector2(22f, -46f),
+            new Vector2(130f, -46f),
             new Vector2(-230f, -12f));
         CreateText(
             card,
             "Description",
-            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
+            font,
             descriptionValue,
             15,
             FontStyle.Normal,
             new Color(0.74f, 0.81f, 0.88f, 1f),
             TextAnchor.MiddleLeft,
-            new Vector2(22f, -78f),
+            new Vector2(130f, -78f),
             new Vector2(-230f, -48f));
         CreateText(
             card,
             "State",
-            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
+            font,
             state,
             14,
             FontStyle.Bold,
@@ -384,7 +413,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         CreateText(
             card,
             "ProgressValue",
-            Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"),
+            font,
             progressValue,
             15,
             FontStyle.Bold,
@@ -397,7 +426,7 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         bar.anchorMin = new Vector2(0f, 0f);
         bar.anchorMax = new Vector2(1f, 0f);
         bar.pivot = new Vector2(0.5f, 0f);
-        bar.offsetMin = new Vector2(22f, 16f);
+        bar.offsetMin = new Vector2(130f, 16f);
         bar.offsetMax = new Vector2(-22f, 24f);
         Image barBackground = bar.gameObject.AddComponent<Image>();
         barBackground.color = new Color(0.015f, 0.025f, 0.04f, 1f);
@@ -444,6 +473,30 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         PuzzleAchievementFilter.Locked => !entry.IsUnlocked && entry.Progress == 0,
         _ => throw new ArgumentOutOfRangeException(nameof(filter)),
     };
+
+    private static string TierLabel(PuzzleAchievementTier tier) => tier switch
+    {
+        PuzzleAchievementTier.Bronze => "BRONZE",
+        PuzzleAchievementTier.Silver => "PRATA",
+        PuzzleAchievementTier.Gold => "OURO",
+        _ => throw new ArgumentOutOfRangeException(nameof(tier)),
+    };
+
+    private static RawImage CreateRawImage(
+        RectTransform parent,
+        string name,
+        Texture2D texture)
+    {
+        if (texture == null) throw new ArgumentNullException(nameof(texture));
+        var imageObject = new GameObject(name, typeof(RectTransform), typeof(RawImage));
+        imageObject.layer = parent.gameObject.layer;
+        RectTransform rect = (RectTransform)imageObject.transform;
+        rect.SetParent(parent, false);
+        RawImage image = imageObject.GetComponent<RawImage>();
+        image.texture = texture;
+        image.raycastTarget = false;
+        return image;
+    }
 
     private static Button CreateButton(
         RectTransform parent,

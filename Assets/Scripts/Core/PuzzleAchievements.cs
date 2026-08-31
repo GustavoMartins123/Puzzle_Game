@@ -13,6 +13,82 @@ public enum PuzzleAchievementMetric
     FastCompletions,
 }
 
+public enum PuzzleAchievementTier
+{
+    Bronze,
+    Silver,
+    Gold,
+}
+
+[Serializable]
+public sealed class PuzzleAchievementVisuals
+{
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D unlocked;
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D locked;
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D secret;
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D bronze;
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D silver;
+    [UnityEngine.SerializeField] private UnityEngine.Texture2D gold;
+
+    public UnityEngine.Texture2D Unlocked => RequireTexture(unlocked, "unlocked");
+
+    public UnityEngine.Texture2D Locked => RequireTexture(locked, "locked");
+
+    public UnityEngine.Texture2D Secret => RequireTexture(secret, "secret");
+
+    public UnityEngine.Texture2D GetMedal(PuzzleAchievementTier tier) => tier switch
+    {
+        PuzzleAchievementTier.Bronze => RequireTexture(bronze, "bronze"),
+        PuzzleAchievementTier.Silver => RequireTexture(silver, "silver"),
+        PuzzleAchievementTier.Gold => RequireTexture(gold, "gold"),
+        _ => throw new ArgumentOutOfRangeException(nameof(tier)),
+    };
+
+    public UnityEngine.Texture2D GetCatalogIcon(
+        PuzzleAchievementDefinition definition,
+        bool isUnlocked)
+    {
+        if (definition == null) throw new ArgumentNullException(nameof(definition));
+        if (isUnlocked) return GetMedal(definition.Tier);
+        return definition.Hidden ? Secret : Locked;
+    }
+
+    public bool TryValidate(out string error)
+    {
+        var values = new[] { unlocked, locked, secret, bronze, silver, gold };
+        string[] names = { "unlocked", "locked", "secret", "bronze", "silver", "gold" };
+        var unique = new HashSet<UnityEngine.Texture2D>();
+        for (int i = 0; i < values.Length; i++)
+        {
+            UnityEngine.Texture2D texture = values[i];
+            if (texture == null)
+            {
+                error = $"achievement {names[i]} texture is missing";
+                return false;
+            }
+            if (texture.width != texture.height || texture.width < 256)
+            {
+                error = $"achievement {names[i]} texture must be square and at least 256 pixels";
+                return false;
+            }
+            if (!unique.Add(texture))
+            {
+                error = $"achievement {names[i]} texture is duplicated";
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static UnityEngine.Texture2D RequireTexture(
+        UnityEngine.Texture2D texture,
+        string role) => texture != null
+        ? texture
+        : throw new InvalidOperationException($"Achievement {role} texture is missing.");
+}
+
 [Serializable]
 public sealed class PuzzleAchievementDefinition
 {
@@ -25,6 +101,7 @@ public sealed class PuzzleAchievementDefinition
     [UnityEngine.SerializeField] private PuzzleCutStyle cutStyle;
     [UnityEngine.SerializeField, UnityEngine.Min(0f)] private float maximumSeconds;
     [UnityEngine.SerializeField] private bool hidden;
+    [UnityEngine.SerializeField] private PuzzleAchievementTier tier;
 
     public string Id => id;
 
@@ -43,6 +120,8 @@ public sealed class PuzzleAchievementDefinition
     public float MaximumSeconds => maximumSeconds;
 
     public bool Hidden => hidden;
+
+    public PuzzleAchievementTier Tier => tier;
 
     public bool TryValidate(out string error)
     {
@@ -79,6 +158,11 @@ public sealed class PuzzleAchievementDefinition
         if (target <= 0)
         {
             error = $"achievement '{id}' target must be positive";
+            return false;
+        }
+        if (!Enum.IsDefined(typeof(PuzzleAchievementTier), tier))
+        {
+            error = $"achievement '{id}' tier is invalid";
             return false;
         }
         if (metric == PuzzleAchievementMetric.DifficultyCompletions &&
