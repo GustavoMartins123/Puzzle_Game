@@ -120,6 +120,7 @@ public class GameMenu : MonoBehaviour
 
     private void ResetAndClose()
     {
+        UiInputGuard.Block();
         finished = false;
         if (resultRoot != null) resultRoot.SetActive(false);
         if (repeatSeedRoot != null) repeatSeedRoot.SetActive(false);

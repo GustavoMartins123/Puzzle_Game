@@ -390,3 +390,120 @@ MonoBehaviour:
     cutStyle: 0
     maximumSeconds: 120
     hidden: 0
+  - id: casual_warmup
+    title: AQUECIMENTO
+    description: Complete 5 partidas na dificuldade Casual.
+    metric: 4
+    target: 5
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: normal_adept
+    title: NA MEDIDA
+    description: Complete 3 partidas na dificuldade Normal.
+    metric: 4
+    target: 3
+    difficulty: 1
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: expert_ambition
+    title: RUMO AO ESPECIALISTA
+    description: Complete 1 partida na dificuldade Especialista.
+    metric: 4
+    target: 1
+    difficulty: 2
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: expert_legend
+    title: LENDA ESPECIALISTA
+    description: Complete 25 partidas na dificuldade Especialista.
+    metric: 4
+    target: 25
+    difficulty: 2
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: curious_mind
+    title: MENTE CURIOSA
+    description: Complete 3 imagens diferentes.
+    metric: 1
+    target: 3
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: half_gallery
+    title: METADE DA GALERIA
+    description: Complete 20 imagens diferentes.
+    metric: 1
+    target: 20
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: geometrist
+    title: GEOMETRA
+    description: Complete 5 partidas com o formato Hexágono.
+    metric: 5
+    target: 5
+    difficulty: 0
+    cutStyle: 4
+    maximumSeconds: 0
+    hidden: 0
+  - id: wave_rider
+    title: DOMADOR DE ONDAS
+    description: Complete 3 partidas com o formato Ondulado.
+    metric: 5
+    target: 3
+    difficulty: 0
+    cutStyle: 7
+    maximumSeconds: 0
+    hidden: 0
+  - id: organic_lover
+    title: NATUREZA ORGÂNICA
+    description: Complete 10 partidas com o formato Orgânico.
+    metric: 5
+    target: 10
+    difficulty: 0
+    cutStyle: 10
+    maximumSeconds: 0
+    hidden: 0
+  - id: marathon
+    title: MARATONISTA
+    description: Complete 50 quebra-cabeças.
+    metric: 0
+    target: 50
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: flawless_master
+    title: IMACULADO
+    description: Termine 25 partidas sem erros e sem dicas.
+    metric: 2
+    target: 25
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 1
+  - id: mythic_score
+    title: PONTUAÇÃO MÍTICA
+    description: Alcance 100.000 pontos em uma única partida.
+    metric: 6
+    target: 100000
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 1
+  - id: lightning_hand
+    title: MÃOS DE RELÂMPAGO
+    description: Complete 1 partida em até 60 segundos.
+    metric: 7
+    target: 1
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 60
+    hidden: 0

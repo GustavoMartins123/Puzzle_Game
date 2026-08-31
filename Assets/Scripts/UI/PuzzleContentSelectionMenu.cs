@@ -358,11 +358,13 @@ public sealed class PuzzleContentSelectionMenu : MonoBehaviour
 
     private void ConfirmSelection()
     {
+        if (!UiInputGuard.Allows) return;
         if (confirmed == null)
             throw new InvalidOperationException("Content confirmation callback is missing.");
         if (selectedImage == null)
             throw new InvalidOperationException("Image selection is missing.");
 
+        UiInputGuard.Block();
         confirmButton.interactable = false;
         if (confirmed(selectedImage)) Close();
         else confirmButton.interactable = true;

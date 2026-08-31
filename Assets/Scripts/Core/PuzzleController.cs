@@ -26,6 +26,7 @@ public class PuzzleController : MonoBehaviour
     private PuzzleHud hud;
     private PuzzleAchievementCenter achievementCenter;
     private PuzzleAchievementPopupQueue achievementPopups;
+    private PuzzleImageGallery imageGallery;
     [NonSerialized] private bool started;
     [NonSerialized] private bool transitioning;
 
@@ -73,6 +74,11 @@ public class PuzzleController : MonoBehaviour
             achievementCenter = PuzzleAchievementCenter.Show(
                 selectionRoot,
                 LoadAchievementCatalog,
+                CancelDrag);
+            imageGallery = PuzzleImageGallery.Show(
+                selectionRoot,
+                config,
+                progress,
                 CancelDrag);
             achievementPopups = PuzzleAchievementPopupQueue.Show(
                 selectionRoot,
@@ -126,15 +132,20 @@ public class PuzzleController : MonoBehaviour
             progressStore = null;
         }
         if (hud != null) hud.Close();
-        if (achievementCenter != null)
-        {
-            achievementCenter.Close();
-            achievementCenter = null;
-        }
         if (achievementPopups != null)
         {
             achievementPopups.Close();
             achievementPopups = null;
+        }
+        if (imageGallery != null)
+        {
+            imageGallery.Close();
+            imageGallery = null;
+        }
+        if (achievementCenter != null)
+        {
+            achievementCenter.Close();
+            achievementCenter = null;
         }
     }
 
@@ -162,6 +173,16 @@ public class PuzzleController : MonoBehaviour
             progress,
             progress.LastSelectedImageId,
             SelectContent);
+        if (achievementCenter != null)
+        {
+            achievementCenter.SetLauncherVisible(true);
+            achievementCenter.RaiseToTop();
+        }
+        if (imageGallery != null)
+        {
+            imageGallery.SetLauncherVisible(true);
+            imageGallery.RaiseToTop();
+        }
     }
 
     private bool SelectContent(PuzzleImageDefinition image)
@@ -209,6 +230,16 @@ public class PuzzleController : MonoBehaviour
             config,
             progress,
             StartPuzzle);
+        if (achievementCenter != null)
+        {
+            achievementCenter.SetLauncherVisible(true);
+            achievementCenter.RaiseToTop();
+        }
+        if (imageGallery != null)
+        {
+            imageGallery.SetLauncherVisible(true);
+            imageGallery.RaiseToTop();
+        }
     }
 
     private bool StartPuzzle(
@@ -288,6 +319,8 @@ public class PuzzleController : MonoBehaviour
             if (session.Difficulty.RotationEnabled)
                 hud.ShowStatus(
                     "ROTAÇÃO: Q/E, botão direito ou ombros; no toque, toque breve na peça.");
+            achievementCenter?.SetLauncherVisible(false);
+            imageGallery?.SetLauncherVisible(false);
             started = true;
             return true;
         }
@@ -567,7 +600,8 @@ public class PuzzleController : MonoBehaviour
 
     private bool IsAchievementUiOpen =>
         (achievementCenter != null && achievementCenter.IsOpen) ||
-        (achievementPopups != null && achievementPopups.IsOpen);
+        (achievementPopups != null && achievementPopups.IsOpen) ||
+        (imageGallery != null && imageGallery.IsOpen);
 
     private void CancelDrag()
     {

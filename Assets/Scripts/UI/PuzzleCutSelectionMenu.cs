@@ -581,6 +581,7 @@ public sealed class PuzzleCutSelectionMenu : MonoBehaviour
 
     private void ConfirmSelection()
     {
+        if (!UiInputGuard.Allows) return;
         if (confirmed == null)
             throw new InvalidOperationException("Cut selection confirmation callback is missing.");
 

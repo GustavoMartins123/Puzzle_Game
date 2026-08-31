@@ -184,6 +184,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
 
     private void AcknowledgeCurrent()
     {
+        if (!UiInputGuard.Allows) return;
         if (notifications.Count == 0)
             throw new InvalidOperationException("There is no achievement notification to acknowledge.");
         if (acknowledge == null)
@@ -196,6 +197,7 @@ public sealed class PuzzleAchievementPopupQueue : MonoBehaviour
             acknowledge.Invoke(notification.NotificationId);
             notifications.Dequeue();
             queuedIds.Remove(notification.NotificationId);
+            UiInputGuard.Block();
             PresentNext();
         }
         catch (Exception exception)

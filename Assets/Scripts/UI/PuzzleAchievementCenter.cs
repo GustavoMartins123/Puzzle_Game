@@ -101,6 +101,18 @@ public sealed class PuzzleAchievementCenter : MonoBehaviour
         launcher.SetActive(true);
     }
 
+    public void SetLauncherVisible(bool visible)
+    {
+        if (launcher == null)
+            throw new InvalidOperationException("Achievement launcher is missing.");
+        launcher.SetActive(visible);
+    }
+
+    public void RaiseToTop()
+    {
+        ((RectTransform)transform).SetAsLastSibling();
+    }
+
     public void ApplyFilter(PuzzleAchievementFilter filter)
     {
         if (!IsOpen)
