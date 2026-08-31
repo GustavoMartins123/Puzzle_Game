@@ -26,9 +26,10 @@ public sealed class PuzzleScoreBreakdown
         TimePenalty = timePenalty;
         ErrorPenalty = errorPenalty;
         HintPenalty = hintPenalty;
-        Total = checked(
+        int rawTotal = checked(
             baseScore + complexityBonus + rotationBonus + referenceBonus -
             timePenalty - errorPenalty - hintPenalty);
+        Total = Math.Max(0, rawTotal);
     }
 
     public int BaseScore { get; }

@@ -27,13 +27,13 @@ internal static class Sqlite3Native
 
     private static readonly IntPtr Transient = new IntPtr(-1);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_open_v2")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_open_v2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Open(byte[] filename, out IntPtr database, int flags, IntPtr vfs);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_close_v2")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_close_v2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Close(IntPtr database);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_exec")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_exec", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Exec(
         IntPtr database,
         byte[] sql,
@@ -41,7 +41,7 @@ internal static class Sqlite3Native
         IntPtr firstArgument,
         out IntPtr errorMessage);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_prepare_v2")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_prepare_v2", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Prepare(
         IntPtr database,
         byte[] sql,
@@ -49,22 +49,22 @@ internal static class Sqlite3Native
         out IntPtr statement,
         out IntPtr tail);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_step")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_step", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Step(IntPtr statement);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_reset")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_reset", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Reset(IntPtr statement);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_finalize")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_finalize", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Finalize(IntPtr statement);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_int64")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_int64", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BindInt64(IntPtr statement, int index, long value);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_double")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_double", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BindDouble(IntPtr statement, int index, double value);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_text")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_text", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BindText(
         IntPtr statement,
         int index,
@@ -72,7 +72,7 @@ internal static class Sqlite3Native
         int byteLength,
         IntPtr destructor);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_blob")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_blob", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BindBlob(
         IntPtr statement,
         int index,
@@ -80,43 +80,43 @@ internal static class Sqlite3Native
         int byteLength,
         IntPtr destructor);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_null")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_bind_null", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BindNull(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_type")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_type", CallingConvention = CallingConvention.Cdecl)]
     private static extern int ColumnType(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_int64")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_int64", CallingConvention = CallingConvention.Cdecl)]
     private static extern long ColumnInt64(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_double")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_double", CallingConvention = CallingConvention.Cdecl)]
     private static extern double ColumnDouble(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_text")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_text", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr ColumnText(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_blob")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_blob", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr ColumnBlob(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_bytes")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_bytes", CallingConvention = CallingConvention.Cdecl)]
     private static extern int ColumnBytes(IntPtr statement, int index);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_column_count")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_column_count", CallingConvention = CallingConvention.Cdecl)]
     private static extern int ColumnCount(IntPtr statement);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_last_insert_rowid")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_last_insert_rowid", CallingConvention = CallingConvention.Cdecl)]
     private static extern long LastInsertRowId(IntPtr database);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_changes")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_changes", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Changes(IntPtr database);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_errmsg")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_errmsg", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr ErrorMessage(IntPtr database);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_busy_timeout")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_busy_timeout", CallingConvention = CallingConvention.Cdecl)]
     private static extern int BusyTimeout(IntPtr database, int milliseconds);
 
-    [DllImport(LibraryName, EntryPoint = "sqlite3_free")]
+    [DllImport(LibraryName, EntryPoint = "sqlite3_free", CallingConvention = CallingConvention.Cdecl)]
     private static extern void Free(IntPtr pointer);
 
     internal static IntPtr OpenDatabase(string path)
@@ -307,6 +307,7 @@ public sealed class SqliteStatement : IDisposable
 {
     private readonly SqliteConnection owner;
     private IntPtr handle;
+    private bool executionFailed;
 
     internal SqliteStatement(SqliteConnection owner, IntPtr handle)
     {
@@ -366,9 +367,17 @@ public sealed class SqliteStatement : IDisposable
     public bool Step()
     {
         RequireHandle();
-        int result = Sqlite3Native.StepStatement(owner.Handle, handle);
-        if (result == Sqlite3Native.Done) Sqlite3Native.ResetStatement(handle);
-        return result == Sqlite3Native.Row;
+        try
+        {
+            int result = Sqlite3Native.StepStatement(owner.Handle, handle);
+            if (result == Sqlite3Native.Done) Sqlite3Native.ResetStatement(handle);
+            return result == Sqlite3Native.Row;
+        }
+        catch
+        {
+            executionFailed = true;
+            throw;
+        }
     }
 
     public void Reset()
@@ -424,8 +433,10 @@ public sealed class SqliteStatement : IDisposable
     public void Dispose()
     {
         if (handle == IntPtr.Zero) return;
-        Sqlite3Native.FinalizeStatement(handle);
+        int result = Sqlite3Native.FinalizeStatement(handle);
         handle = IntPtr.Zero;
+        if (result != Sqlite3Native.Ok && !executionFailed)
+            throw new SqliteException(result, "Could not finalize the SQLite statement.");
     }
 
     private void RequireHandle()
@@ -441,8 +452,41 @@ public sealed class SqliteConnection : IDisposable
 
     public SqliteConnection(string path)
     {
-        Handle = Sqlite3Native.OpenDatabase(path);
-        Sqlite3Native.ConfigureBusyTimeout(Handle, 5000);
+        IntPtr openedHandle = Sqlite3Native.OpenDatabase(path);
+        Handle = openedHandle;
+        try
+        {
+            Sqlite3Native.ConfigureBusyTimeout(Handle, 5000);
+            Execute("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;");
+            using (SqliteStatement statement = Prepare("PRAGMA foreign_keys;"))
+            {
+                if (!statement.Step() || statement.ColumnInt(0) != 1)
+                    throw new InvalidOperationException(
+                        "SQLite foreign-key enforcement could not be enabled.");
+            }
+            using (SqliteStatement statement = Prepare("PRAGMA journal_mode = WAL;"))
+            {
+                if (!statement.Step() ||
+                    !string.Equals(statement.ColumnText(0), "wal", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("SQLite WAL journal mode could not be enabled.");
+            }
+        }
+        catch (Exception initializationException)
+        {
+            Handle = IntPtr.Zero;
+            try
+            {
+                Sqlite3Native.CloseDatabase(openedHandle);
+            }
+            catch (Exception closeException)
+            {
+                throw new AggregateException(
+                    "SQLite initialization failed and its connection could not be closed.",
+                    initializationException,
+                    closeException);
+            }
+            throw;
+        }
     }
 
     public void Execute(string sql)
@@ -494,8 +538,8 @@ public sealed class SqliteConnection : IDisposable
     {
         if (Handle == IntPtr.Zero) return;
         IntPtr handle = Handle;
-        Handle = IntPtr.Zero;
         Sqlite3Native.CloseDatabase(handle);
+        Handle = IntPtr.Zero;
     }
 
     private void RequireHandle()

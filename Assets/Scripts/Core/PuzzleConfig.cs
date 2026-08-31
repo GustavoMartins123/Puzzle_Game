@@ -155,6 +155,9 @@ public class PuzzleConfig : ScriptableObject
     [SerializeField] private PuzzleCollectionDefinition[] collections;
     [SerializeField] private PuzzleCutStyleUnlock[] cutStyleUnlocks;
 
+    [Header("Achievements")]
+    [SerializeField] private PuzzleAchievementDefinition[] achievements;
+
     public IReadOnlyList<PuzzleDifficultyProfile> DifficultyProfiles => difficultyProfiles;
 
     public PuzzleDifficultyProfile DefaultDifficulty => GetDifficulty(defaultDifficulty);
@@ -164,6 +167,8 @@ public class PuzzleConfig : ScriptableObject
     public string DefaultImageId => defaultImageId;
 
     public string ImportCollectionId => importCollectionId;
+
+    public IReadOnlyList<PuzzleAchievementDefinition> Achievements => achievements;
 
     public int ImageCount
     {
@@ -362,6 +367,28 @@ public class PuzzleConfig : ScriptableObject
             return false;
         }
 
+        if (achievements == null || achievements.Length == 0)
+        {
+            error = "at least one achievement definition is required";
+            return false;
+        }
+        var achievementIds = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < achievements.Length; i++)
+        {
+            PuzzleAchievementDefinition achievement = achievements[i];
+            if (achievement == null)
+            {
+                error = $"achievement definition {i} is missing";
+                return false;
+            }
+            if (!achievement.TryValidate(out error)) return false;
+            if (!achievementIds.Add(achievement.Id))
+            {
+                error = $"achievement id '{achievement.Id}' is duplicated";
+                return false;
+            }
+        }
+
         error = string.Empty;
         return true;
     }
@@ -396,6 +423,24 @@ public class PuzzleConfig : ScriptableObject
         }
 
         throw new InvalidOperationException($"Puzzle image id '{imageId}' is not configured.");
+    }
+
+    public PuzzleAchievementDefinition GetAchievement(string achievementId)
+    {
+        if (string.IsNullOrWhiteSpace(achievementId))
+            throw new ArgumentException("Achievement id is required.", nameof(achievementId));
+        if (achievements == null)
+            throw new InvalidOperationException("Puzzle achievements are not configured.");
+
+        for (int i = 0; i < achievements.Length; i++)
+        {
+            PuzzleAchievementDefinition definition = achievements[i] ??
+                throw new InvalidOperationException($"Puzzle achievement {i} is invalid.");
+            if (definition.Id == achievementId) return definition;
+        }
+
+        throw new InvalidOperationException(
+            $"Puzzle achievement id '{achievementId}' is not configured.");
     }
 
     public PuzzleCollectionDefinition GetCollectionForImage(string imageId)

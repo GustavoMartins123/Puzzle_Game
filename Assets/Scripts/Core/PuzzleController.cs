@@ -24,6 +24,7 @@ public class PuzzleController : MonoBehaviour
     private readonly PuzzleSessionMetrics metrics = new PuzzleSessionMetrics();
     private readonly PuzzleHintController hints = new PuzzleHintController();
     private PuzzleHud hud;
+    private PuzzleAchievementPopupQueue achievementPopups;
     private bool started;
     private bool transitioning;
 
@@ -68,6 +69,10 @@ public class PuzzleController : MonoBehaviour
             PuzzleDifficultyProfile difficulty =
                 config.GetDifficulty(progress.LastSelectedDifficulty);
             ShowContentSelection(difficulty, progress.LastSelectedCutStyle);
+            achievementPopups = PuzzleAchievementPopupQueue.Show(
+                selectionRoot,
+                AcknowledgeAchievementNotification);
+            ShowPendingAchievementNotifications();
         }
         catch (Exception exception)
         {
@@ -83,7 +88,8 @@ public class PuzzleController : MonoBehaviour
 
     private void Update()
     {
-        if (!started || transitioning || menu.IsOpen) return;
+        if (!started || transitioning || menu.IsOpen ||
+            (achievementPopups != null && achievementPopups.IsOpen)) return;
 
         metrics.Tick(Time.unscaledDeltaTime);
         hints.Tick(Time.unscaledDeltaTime);
@@ -108,6 +114,11 @@ public class PuzzleController : MonoBehaviour
             progressStore = null;
         }
         if (hud != null) hud.Close();
+        if (achievementPopups != null)
+        {
+            achievementPopups.Close();
+            achievementPopups = null;
+        }
     }
 
     private void ShowContentSelection(
@@ -276,7 +287,9 @@ public class PuzzleController : MonoBehaviour
 
     private void TogglePause()
     {
-        if (started && !transitioning) menu.TogglePause();
+        if (started && !transitioning &&
+            (achievementPopups == null || !achievementPopups.IsOpen))
+            menu.TogglePause();
     }
 
     private void RetryCurrentSession()
@@ -441,7 +454,8 @@ public class PuzzleController : MonoBehaviour
 
     private void RotateHeldPiece(int direction)
     {
-        if (!started || transitioning || menu.IsOpen) return;
+        if (!started || transitioning || menu.IsOpen ||
+            (achievementPopups != null && achievementPopups.IsOpen)) return;
         PuzzlePiece piece = dragLayer.Held;
         if (piece == null)
         {
@@ -462,7 +476,8 @@ public class PuzzleController : MonoBehaviour
 
     private void UseHint()
     {
-        if (!started || transitioning || menu.IsOpen)
+        if (!started || transitioning || menu.IsOpen ||
+            (achievementPopups != null && achievementPopups.IsOpen))
             throw new InvalidOperationException("Hints require an active unpaused session.");
         if (dragLayer.IsDragging)
         {
@@ -483,8 +498,13 @@ public class PuzzleController : MonoBehaviour
         try
         {
             progressUpdate = progress.RecordCompletion(config, currentSession, metrics, score);
-            progressStore.Save(progress, config);
-            progressStore.RecordSession(currentSession, metrics, score, progressUpdate);
+            progressStore.CompleteSession(
+                progress,
+                config,
+                currentSession,
+                metrics,
+                score,
+                progressUpdate);
         }
         catch (Exception exception)
         {
@@ -501,6 +521,22 @@ public class PuzzleController : MonoBehaviour
         float duration = builder.PlayCompletionWave();
         yield return new WaitForSecondsRealtime(duration + winDelay);
         menu.ShowWin(score, progressUpdate);
+        ShowPendingAchievementNotifications();
+    }
+
+    private void ShowPendingAchievementNotifications()
+    {
+        if (achievementPopups == null)
+            throw new InvalidOperationException("Achievement popup queue is not initialized.");
+        achievementPopups.Enqueue(
+            progressStore.GetPendingAchievementNotifications(config));
+    }
+
+    private void AcknowledgeAchievementNotification(long notificationId)
+    {
+        if (progressStore == null)
+            throw new InvalidOperationException("Progress store is not initialized.");
+        progressStore.AcknowledgeAchievementNotification(notificationId);
     }
 
     private void CancelDrag()

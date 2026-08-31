@@ -12,6 +12,7 @@ public class PuzzleConfigEditor : Editor
     private SerializedProperty importCollectionId;
     private SerializedProperty collections;
     private SerializedProperty cutStyleUnlocks;
+    private SerializedProperty achievements;
 
     private void OnEnable()
     {
@@ -23,6 +24,7 @@ public class PuzzleConfigEditor : Editor
         importCollectionId = serializedObject.FindProperty("importCollectionId");
         collections = serializedObject.FindProperty("collections");
         cutStyleUnlocks = serializedObject.FindProperty("cutStyleUnlocks");
+        achievements = serializedObject.FindProperty("achievements");
     }
 
     public override void OnInspectorGUI()
@@ -46,6 +48,10 @@ public class PuzzleConfigEditor : Editor
             new GUIContent("New Images Collection"));
         EditorGUILayout.PropertyField(collections, new GUIContent("Collections"), true);
         EditorGUILayout.PropertyField(cutStyleUnlocks, new GUIContent("Cut Style Unlocks"), true);
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Achievements", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(achievements, new GUIContent("Definitions"), true);
         serializedObject.ApplyModifiedProperties();
 
         EditorGUILayout.Space();

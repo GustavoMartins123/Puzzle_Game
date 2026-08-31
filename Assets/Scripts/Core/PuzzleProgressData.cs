@@ -54,6 +54,15 @@ public sealed class PuzzleBestResultRecord
         float seconds,
         PuzzleMedal medal)
     {
+        if (string.IsNullOrWhiteSpace(imageId))
+            throw new ArgumentException("Image id is required.", nameof(imageId));
+        if (!Enum.IsDefined(typeof(PuzzleDifficulty), difficulty))
+            throw new ArgumentOutOfRangeException(nameof(difficulty));
+        if (score < 0) throw new ArgumentOutOfRangeException(nameof(score));
+        if (!float.IsFinite(seconds) || seconds < 0f)
+            throw new ArgumentOutOfRangeException(nameof(seconds));
+        if (!Enum.IsDefined(typeof(PuzzleMedal), medal))
+            throw new ArgumentOutOfRangeException(nameof(medal));
         this.imageId = imageId;
         this.difficulty = difficulty;
         bestScore = score;
@@ -86,6 +95,7 @@ public sealed class PuzzleBestResultRecord
             throw new ArgumentException("Image id is required.", nameof(imageId));
         if (!Enum.IsDefined(typeof(PuzzleDifficulty), difficulty))
             throw new ArgumentOutOfRangeException(nameof(difficulty));
+        if (bestScore < 0) throw new ArgumentOutOfRangeException(nameof(bestScore));
         if (!float.IsFinite(bestSeconds) || bestSeconds < 0f)
             throw new ArgumentOutOfRangeException(nameof(bestSeconds));
         if (!Enum.IsDefined(typeof(PuzzleMedal), bestMedal))
@@ -100,6 +110,7 @@ public sealed class PuzzleBestResultRecord
 
     public bool Record(int score, float seconds, PuzzleMedal medal)
     {
+        if (score < 0) throw new ArgumentOutOfRangeException(nameof(score));
         if (!float.IsFinite(seconds) || seconds < 0f)
             throw new ArgumentOutOfRangeException(nameof(seconds));
         if (!Enum.IsDefined(typeof(PuzzleMedal), medal))
@@ -121,6 +132,9 @@ public sealed class PuzzleBestResultRecord
             throw new InvalidOperationException(
                 $"Progress result for '{imageId}' has invalid difficulty {difficulty}.");
         config.GetDifficulty(difficulty);
+        if (bestScore < 0)
+            throw new InvalidOperationException(
+                $"Progress result for '{imageId}' has a negative best score.");
         if (!float.IsFinite(bestSeconds) || bestSeconds < 0f)
             throw new InvalidOperationException(
                 $"Progress result for '{imageId}' has invalid best time.");

@@ -39,8 +39,6 @@ public static class PuzzleProgressSerializer
 
 public sealed class PuzzleProgressStore : IDisposable
 {
-    public const string LegacyPlayerPrefsKey = "Puzzle.Progress.v1";
-
     private readonly GameDatabase database;
     private readonly bool ownsDatabase;
 
@@ -71,14 +69,25 @@ public sealed class PuzzleProgressStore : IDisposable
     public PuzzleProgressData LoadOrCreate(PuzzleConfig config)
     {
         if (config == null) throw new ArgumentNullException(nameof(config));
+        if (!config.TryValidate(out string configError))
+            throw new InvalidOperationException($"Invalid PuzzleConfig: {configError}.");
 
+        bool initialized = database.IsProfileInitialized();
         PuzzleProgressData progress = LoadPersisted(config);
-        if (progress == null) progress = MigrateLegacyProgress(config);
-        if (progress == null)
+        if (!initialized)
         {
+            if (progress != null || database.HasUserData())
+                throw new InvalidOperationException(
+                    "SQLite contains user data without the canonical initialization marker.");
             progress = PuzzleProgressData.CreateNew(config);
             Save(progress, config);
         }
+        else if (progress == null)
+        {
+            throw new InvalidOperationException(
+                "SQLite profile is initialized but its progress_state row is missing.");
+        }
+        ValidateAchievementStates(config);
         return progress;
     }
 
@@ -89,19 +98,26 @@ public sealed class PuzzleProgressStore : IDisposable
         database.SaveProgressState(ToPersistedState(progress));
     }
 
-    public long RecordSession(
+    public PuzzleCompletionDatabaseResult CompleteSession(
+        PuzzleProgressData progress,
+        PuzzleConfig config,
         PuzzleSessionDefinition session,
         PuzzleSessionMetrics metrics,
         PuzzleScoreBreakdown score,
         PuzzleProgressUpdate update)
     {
-        if (session == null) throw new ArgumentNullException(nameof(session));
-        if (session.Texture == null)
-            throw new ArgumentException("Session texture is required.", nameof(session));
-        if (metrics == null || !metrics.IsActive || !metrics.IsComplete)
-            throw new ArgumentException("Completed session metrics are required.", nameof(metrics));
-        if (score == null) throw new ArgumentNullException(nameof(score));
-        if (update == null) throw new ArgumentNullException(nameof(update));
+        ValidateCompletedSession(progress, config, session, metrics, score, update);
+
+        IReadOnlyDictionary<string, AchievementState> states =
+            BuildAchievementStateMap(config);
+        IReadOnlyList<PuzzleAchievementProgressChange> changes =
+            PuzzleAchievementEvaluator.EvaluateCompletion(
+                config.Achievements,
+                states,
+                progress,
+                session,
+                metrics,
+                score);
 
         var record = new PuzzleSessionRecord
         {
@@ -120,8 +136,50 @@ public sealed class PuzzleProgressStore : IDisposable
             Medal = (int)update.Medal,
             IsNewRecord = update.NewBestScore,
         };
-        return database.InsertSessionRecord(record);
+        return database.SaveCompletedSession(
+            ToPersistedState(progress),
+            record,
+            changes);
     }
+
+    public IReadOnlyList<PuzzleAchievementCatalogEntry> GetAchievementCatalog(PuzzleConfig config)
+    {
+        IReadOnlyDictionary<string, AchievementState> states =
+            BuildAchievementStateMap(config);
+        var catalog = new List<PuzzleAchievementCatalogEntry>(config.Achievements.Count);
+        for (int i = 0; i < config.Achievements.Count; i++)
+        {
+            PuzzleAchievementDefinition definition = config.Achievements[i];
+            states.TryGetValue(definition.Id, out AchievementState state);
+            catalog.Add(new PuzzleAchievementCatalogEntry(
+                definition,
+                state?.Progress ?? 0,
+                state?.UnlockedAtUtc));
+        }
+        return catalog;
+    }
+
+    public IReadOnlyList<PuzzleAchievementNotification> GetPendingAchievementNotifications(
+        PuzzleConfig config)
+    {
+        if (config == null) throw new ArgumentNullException(nameof(config));
+        ValidateAchievementStates(config);
+        IReadOnlyList<AchievementNotificationRecord> records =
+            database.GetPendingAchievementNotifications();
+        var notifications = new List<PuzzleAchievementNotification>(records.Count);
+        for (int i = 0; i < records.Count; i++)
+        {
+            AchievementNotificationRecord record = records[i];
+            notifications.Add(new PuzzleAchievementNotification(
+                record.Id,
+                config.GetAchievement(record.AchievementId),
+                record.CreatedAtUtc));
+        }
+        return notifications;
+    }
+
+    public void AcknowledgeAchievementNotification(long notificationId) =>
+        database.AcknowledgeAchievementNotification(notificationId);
 
     public IReadOnlyList<PuzzleSessionRecord> GetRecentSessions(int limit) =>
         database.GetRecentSessions(limit);
@@ -168,25 +226,73 @@ public sealed class PuzzleProgressStore : IDisposable
         return progress;
     }
 
-    private PuzzleProgressData MigrateLegacyProgress(PuzzleConfig config)
+    private IReadOnlyDictionary<string, AchievementState> BuildAchievementStateMap(
+        PuzzleConfig config)
     {
-        if (!PlayerPrefs.HasKey(LegacyPlayerPrefsKey)) return null;
+        if (config == null) throw new ArgumentNullException(nameof(config));
+        var states = new Dictionary<string, AchievementState>(StringComparer.Ordinal);
+        IReadOnlyList<AchievementState> persisted = database.GetAchievements();
+        for (int i = 0; i < persisted.Count; i++)
+        {
+            AchievementState state = persisted[i] ??
+                throw new InvalidOperationException($"Persisted achievement {i} is missing.");
+            PuzzleAchievementDefinition definition = config.GetAchievement(state.AchievementId);
+            if (state.Progress < 0 || state.Progress > definition.Target)
+                throw new InvalidOperationException(
+                    $"Persisted achievement '{state.AchievementId}' has invalid progress {state.Progress}.");
+            if (state.IsUnlocked != (state.Progress == definition.Target))
+                throw new InvalidOperationException(
+                    $"Persisted achievement '{state.AchievementId}' has an inconsistent unlock state.");
+            if (!states.TryAdd(state.AchievementId, state))
+                throw new InvalidOperationException(
+                    $"Persisted achievement '{state.AchievementId}' is duplicated.");
+        }
+        return states;
+    }
 
-        try
-        {
-            PuzzleProgressData progress = PuzzleProgressSerializer.Deserialize(
-                PlayerPrefs.GetString(LegacyPlayerPrefsKey), config);
-            Save(progress, config);
-            PlayerPrefs.DeleteKey(LegacyPlayerPrefsKey);
-            PlayerPrefs.Save();
-            return progress;
-        }
-        catch (Exception exception)
-        {
+    private void ValidateAchievementStates(PuzzleConfig config) =>
+        BuildAchievementStateMap(config);
+
+    private static void ValidateCompletedSession(
+        PuzzleProgressData progress,
+        PuzzleConfig config,
+        PuzzleSessionDefinition session,
+        PuzzleSessionMetrics metrics,
+        PuzzleScoreBreakdown score,
+        PuzzleProgressUpdate update)
+    {
+        if (progress == null) throw new ArgumentNullException(nameof(progress));
+        if (config == null) throw new ArgumentNullException(nameof(config));
+        if (session == null) throw new ArgumentNullException(nameof(session));
+        if (metrics == null || !metrics.IsActive || !metrics.IsComplete)
+            throw new ArgumentException("Completed session metrics are required.", nameof(metrics));
+        if (score == null) throw new ArgumentNullException(nameof(score));
+        if (update == null) throw new ArgumentNullException(nameof(update));
+
+        progress.Validate(config);
+        if (!session.TryValidate(out string sessionError))
+            throw new InvalidOperationException($"Completed session is invalid: {sessionError}.");
+        PuzzleImageDefinition image = config.GetImage(session.ImageId);
+        if (config.LoadImage(image) != session.Texture)
             throw new InvalidOperationException(
-                "Legacy PlayerPrefs progress could not be migrated to the SQLite database.",
-                exception);
-        }
+                $"Completed puzzle texture does not match image '{image.Id}'.");
+        int expectedPieces = checked(session.Layout.divisions * session.Layout.divisions);
+        if (metrics.TotalPieces != expectedPieces || metrics.PlacedPieces != expectedPieces)
+            throw new InvalidOperationException(
+                "Completed session metrics do not match the selected layout.");
+        PuzzleScoreBreakdown canonicalScore = PuzzleScoreCalculator.Calculate(session, metrics);
+        if (score.Total != canonicalScore.Total ||
+            score.BaseScore != canonicalScore.BaseScore ||
+            score.ComplexityBonus != canonicalScore.ComplexityBonus ||
+            score.RotationBonus != canonicalScore.RotationBonus ||
+            score.ReferenceBonus != canonicalScore.ReferenceBonus ||
+            score.TimePenalty != canonicalScore.TimePenalty ||
+            score.ErrorPenalty != canonicalScore.ErrorPenalty ||
+            score.HintPenalty != canonicalScore.HintPenalty)
+            throw new InvalidOperationException("Completed session score is not canonical.");
+        PuzzleMedal canonicalMedal = PuzzleMedalCalculator.Calculate(metrics);
+        if (update.Medal != canonicalMedal)
+            throw new InvalidOperationException("Completed session medal is not canonical.");
     }
 
     private static PersistedProgressState ToPersistedState(PuzzleProgressData progress)

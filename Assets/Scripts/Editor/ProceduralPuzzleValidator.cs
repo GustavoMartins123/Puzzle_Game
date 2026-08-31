@@ -33,8 +33,10 @@ public static class ProceduralPuzzleValidator
             }
         }
 
+        SqlitePluginConfiguration.Validate();
         ValidateSelectionUi();
         ValidateContentSelectionUi();
+        ValidateAchievementPopupUi();
         ValidateSessionDefinitions();
         ValidateSessionMetrics();
         ValidatePhaseFourRules();
@@ -48,7 +50,8 @@ public static class ProceduralPuzzleValidator
             $"{piecesValidated} pieces across every cut style; difficulty profiles, sessions, " +
             "retry image rotation, session metrics, deterministic scoring, optional piece " +
             "rotation, geometric tray filters, content selection, versioned progression, " +
-            "transactional persistence, responsive trays, prefabs, and scene are valid.");
+            "atomic SQLite persistence, schema migration, achievements, persistent notification " +
+            "pop-ups, responsive trays, prefabs, and scene are valid.");
     }
 
     private static void ValidateSessionDefinitions()
@@ -341,26 +344,91 @@ public static class ProceduralPuzzleValidator
                     throw new InvalidOperationException(
                         "Transactional progress store changed persisted data.");
 
-                long sessionId = store.RecordSession(
-                    BuildHistoryValidationSession(config, progress),
-                    BuildHistoryValidationMetrics(),
-                    BuildHistoryValidationScore(config, progress),
-                    new PuzzleProgressUpdate(
-                        PuzzleMedal.Gold,
-                        false,
-                        Array.Empty<string>()));
+                PuzzleSessionDefinition session =
+                    BuildHistoryValidationSession(config, loaded);
+                PuzzleSessionMetrics metrics = BuildHistoryValidationMetrics(session);
+                PuzzleScoreBreakdown score = PuzzleScoreCalculator.Calculate(session, metrics);
+                if (score.Total != 0)
+                    throw new InvalidOperationException(
+                        "Score validation session did not exercise the zero-point floor.");
+                PuzzleProgressUpdate update =
+                    loaded.RecordCompletion(config, session, metrics, score);
+                PuzzleCompletionDatabaseResult completion = store.CompleteSession(
+                    loaded,
+                    config,
+                    session,
+                    metrics,
+                    score,
+                    update);
                 System.Collections.Generic.IReadOnlyList<PuzzleSessionRecord> history =
                     store.GetRecentSessions(int.MaxValue);
                 if (history.Count != 1 ||
-                    history[0].Id != sessionId ||
-                    history[0].Score <= 0 ||
-                    history[0].TotalPieces <= 0)
+                    history[0].Id != completion.SessionId ||
+                    history[0].Score != score.Total ||
+                    history[0].TotalPieces !=
+                        session.Layout.divisions * session.Layout.divisions)
                     throw new InvalidOperationException(
                         "Session history persistence did not round-trip.");
                 if (store.GetSessionCount() != 1 ||
                     store.GetTopScoreSessions(1).Count != 1)
                     throw new InvalidOperationException(
                         "Session history queries returned inconsistent data.");
+
+                System.Collections.Generic.IReadOnlyList<PuzzleAchievementCatalogEntry> catalog =
+                    store.GetAchievementCatalog(config);
+                if (catalog.Count != config.Achievements.Count ||
+                    !FindAchievement(catalog, "first_puzzle").IsUnlocked ||
+                    !FindAchievement(catalog, "collector").IsUnlocked ||
+                    !FindAchievement(catalog, "perfect_finish").IsUnlocked)
+                    throw new InvalidOperationException(
+                        "Completion did not evaluate the configured achievement catalog.");
+
+                System.Collections.Generic.IReadOnlyList<PuzzleAchievementNotification> pending =
+                    store.GetPendingAchievementNotifications(config);
+                if (pending.Count != completion.UnlockedAchievementIds.Count || pending.Count < 3)
+                    throw new InvalidOperationException(
+                        "Achievement unlock notifications were not persisted atomically.");
+
+                PersistedProgressState rollbackState = store.Database.LoadProgressState();
+                string committedImageId = rollbackState.LastSelectedImageId;
+                rollbackState.LastSelectedImageId = config.PickDifferentUnlockedImage(
+                    committedImageId,
+                    loaded).Id;
+                PuzzleSessionRecord rollbackRecord = CopySessionRecord(history[0]);
+                int sessionsBeforeRollback = store.GetSessionCount();
+                bool rollbackRejected = false;
+                try
+                {
+                    store.Database.SaveCompletedSession(
+                        rollbackState,
+                        rollbackRecord,
+                        new[]
+                        {
+                            new PuzzleAchievementProgressChange("first_puzzle", 1, 2, 2),
+                        });
+                }
+                catch (InvalidOperationException)
+                {
+                    rollbackRejected = true;
+                }
+                if (!rollbackRejected || store.GetSessionCount() != sessionsBeforeRollback ||
+                    store.Database.LoadProgressState().LastSelectedImageId != committedImageId)
+                    throw new InvalidOperationException(
+                        "Failed completion transaction was not rolled back atomically.");
+            }
+
+            using (var reopenedStore = new PuzzleProgressStore(validationPath))
+            {
+                System.Collections.Generic.IReadOnlyList<PuzzleAchievementNotification> pending =
+                    reopenedStore.GetPendingAchievementNotifications(config);
+                if (pending.Count == 0)
+                    throw new InvalidOperationException(
+                        "Pending achievement notifications did not survive a database restart.");
+                for (int i = 0; i < pending.Count; i++)
+                    reopenedStore.AcknowledgeAchievementNotification(pending[i].NotificationId);
+                if (reopenedStore.GetPendingAchievementNotifications(config).Count != 0)
+                    throw new InvalidOperationException(
+                        "Acknowledged achievement notifications remained pending.");
             }
         }
         finally
@@ -368,7 +436,13 @@ public static class ProceduralPuzzleValidator
             if (File.Exists(validationPath)) File.Delete(validationPath);
             string journalPath = validationPath + "-journal";
             if (File.Exists(journalPath)) File.Delete(journalPath);
+            string walPath = validationPath + "-wal";
+            if (File.Exists(walPath)) File.Delete(walPath);
+            string sharedMemoryPath = validationPath + "-shm";
+            if (File.Exists(sharedMemoryPath)) File.Delete(sharedMemoryPath);
         }
+
+        ValidateVersionOneDatabaseMigration(config);
     }
 
     private static PuzzleSessionDefinition BuildHistoryValidationSession(
@@ -387,22 +461,116 @@ public static class ProceduralPuzzleValidator
             7201);
     }
 
-    private static PuzzleSessionMetrics BuildHistoryValidationMetrics()
+    private static PuzzleSessionMetrics BuildHistoryValidationMetrics(
+        PuzzleSessionDefinition session)
     {
+        if (session == null) throw new ArgumentNullException(nameof(session));
         var metrics = new PuzzleSessionMetrics();
-        metrics.Begin(1);
-        metrics.Tick(1f);
-        metrics.RecordCorrectPlacement();
+        int totalPieces = session.Layout.divisions * session.Layout.divisions;
+        metrics.Begin(totalPieces);
+        metrics.Tick(5000f);
+        for (int i = 0; i < totalPieces; i++) metrics.RecordCorrectPlacement();
         return metrics;
     }
 
-    private static PuzzleScoreBreakdown BuildHistoryValidationScore(
-        PuzzleConfig config,
-        PuzzleProgressData progress)
+    private static PuzzleAchievementCatalogEntry FindAchievement(
+        System.Collections.Generic.IReadOnlyList<PuzzleAchievementCatalogEntry> catalog,
+        string achievementId)
     {
-        return PuzzleScoreCalculator.Calculate(
-            BuildHistoryValidationSession(config, progress),
-            BuildHistoryValidationMetrics());
+        for (int i = 0; i < catalog.Count; i++)
+            if (catalog[i].Definition.Id == achievementId) return catalog[i];
+        throw new InvalidOperationException(
+            $"Achievement '{achievementId}' is missing from the catalog.");
+    }
+
+    private static PuzzleSessionRecord CopySessionRecord(PuzzleSessionRecord source)
+    {
+        if (source == null) throw new ArgumentNullException(nameof(source));
+        return new PuzzleSessionRecord
+        {
+            ImageId = source.ImageId,
+            Difficulty = source.Difficulty,
+            CutStyle = source.CutStyle,
+            LayoutDivisions = source.LayoutDivisions,
+            TotalPieces = source.TotalPieces,
+            CutSeed = source.CutSeed,
+            TraySeed = source.TraySeed,
+            ElapsedSeconds = source.ElapsedSeconds,
+            MovesStarted = source.MovesStarted,
+            IncorrectAttempts = source.IncorrectAttempts,
+            HintsUsed = source.HintsUsed,
+            Score = source.Score,
+            Medal = source.Medal,
+            IsNewRecord = source.IsNewRecord,
+        };
+    }
+
+    private static void ValidateVersionOneDatabaseMigration(PuzzleConfig config)
+    {
+        string migrationPath = Path.Combine(
+            Path.GetTempPath(),
+            "PuzzleProgressMigrationValidation." + Guid.NewGuid().ToString("N") + ".db");
+        const string versionOneSchema =
+            "CREATE TABLE meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);" +
+            "CREATE TABLE progress_state (id INTEGER PRIMARY KEY CHECK (id = 1)," +
+            " last_selected_image_id TEXT NOT NULL, last_selected_difficulty INTEGER NOT NULL," +
+            " last_selected_cut_style INTEGER NOT NULL);" +
+            "CREATE TABLE unlocked_images (image_id TEXT PRIMARY KEY NOT NULL," +
+            " position INTEGER NOT NULL UNIQUE);" +
+            "CREATE TABLE completed_images (image_id TEXT PRIMARY KEY NOT NULL);" +
+            "CREATE TABLE best_results (image_id TEXT NOT NULL, difficulty INTEGER NOT NULL," +
+            " best_score INTEGER NOT NULL, best_seconds REAL NOT NULL, best_medal INTEGER NOT NULL," +
+            " completions INTEGER NOT NULL, PRIMARY KEY (image_id, difficulty));" +
+            "CREATE TABLE session_history (id INTEGER PRIMARY KEY AUTOINCREMENT," +
+            " completed_at_utc TEXT NOT NULL, image_id TEXT NOT NULL, difficulty INTEGER NOT NULL," +
+            " cut_style INTEGER NOT NULL, layout_divisions INTEGER NOT NULL," +
+            " total_pieces INTEGER NOT NULL, cut_seed INTEGER NOT NULL, tray_seed INTEGER NOT NULL," +
+            " elapsed_seconds REAL NOT NULL, moves_started INTEGER NOT NULL," +
+            " incorrect_attempts INTEGER NOT NULL, hints_used INTEGER NOT NULL," +
+            " score INTEGER NOT NULL, medal INTEGER NOT NULL, is_new_record INTEGER NOT NULL);" +
+            "CREATE INDEX idx_session_history_completed_at ON session_history (completed_at_utc);" +
+            "CREATE INDEX idx_session_history_score ON session_history (score);" +
+            "CREATE INDEX idx_session_history_image ON session_history (image_id);" +
+            "CREATE TABLE achievements (achievement_id TEXT PRIMARY KEY NOT NULL," +
+            " unlocked_at_utc TEXT, progress INTEGER NOT NULL DEFAULT 0," +
+            " target INTEGER NOT NULL DEFAULT 1);";
+
+        try
+        {
+            using (var connection = new SqliteConnection(migrationPath))
+            {
+                connection.Execute(versionOneSchema);
+                connection.Execute(
+                    "INSERT INTO progress_state" +
+                    " (id, last_selected_image_id, last_selected_difficulty, last_selected_cut_style)" +
+                    " VALUES (1, 'img_01', 0, 0);" +
+                    "INSERT INTO unlocked_images (image_id, position) VALUES ('img_01', 0);" +
+                    "INSERT INTO unlocked_images (image_id, position) VALUES ('img_02', 1);" +
+                    "INSERT INTO unlocked_images (image_id, position) VALUES ('img_03', 2);" +
+                    "INSERT INTO unlocked_images (image_id, position) VALUES ('img_04', 3);" +
+                    "INSERT INTO achievements" +
+                    " (achievement_id, unlocked_at_utc, progress, target)" +
+                    " VALUES ('first_puzzle', NULL, 0, 1);" +
+                    "PRAGMA user_version = 1;");
+            }
+
+            using (var store = new PuzzleProgressStore(migrationPath))
+            {
+                PuzzleProgressData migrated = store.LoadOrCreate(config);
+                PuzzleAchievementCatalogEntry first =
+                    FindAchievement(store.GetAchievementCatalog(config), "first_puzzle");
+                if (migrated == null || first.Progress != 0 || first.IsUnlocked)
+                    throw new InvalidOperationException(
+                        "Version 1 database migration changed achievement state.");
+            }
+        }
+        finally
+        {
+            if (File.Exists(migrationPath)) File.Delete(migrationPath);
+            if (File.Exists(migrationPath + "-journal")) File.Delete(migrationPath + "-journal");
+            if (File.Exists(migrationPath + "-wal")) File.Delete(migrationPath + "-wal");
+            if (File.Exists(migrationPath + "-shm")) File.Delete(migrationPath + "-shm");
+        }
     }
 
     private static void CompleteImageForProgressValidation(
@@ -708,6 +876,55 @@ public static class ProceduralPuzzleValidator
                 if (texts[i].fontSize < 12 || !texts[i].alignByGeometry)
                     throw new InvalidOperationException(
                         $"Content UI text '{texts[i].name}' is not configured for crisp rendering.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void ValidateAchievementPopupUi()
+    {
+        var canvasObject = new GameObject(
+            "PuzzleAchievementUiValidation",
+            typeof(RectTransform),
+            typeof(Canvas));
+        try
+        {
+            PuzzleConfig config = AssetDatabase.LoadAssetAtPath<PuzzleConfig>(
+                "Assets/Settings/PuzzleConfig.asset");
+            if (config == null || config.Achievements.Count == 0)
+                throw new InvalidOperationException(
+                    "Achievement popup validation requires configured achievements.");
+
+            long acknowledgedId = 0;
+            PuzzleAchievementPopupQueue popup = PuzzleAchievementPopupQueue.Show(
+                (RectTransform)canvasObject.transform,
+                id => acknowledgedId = id);
+            popup.Enqueue(new[]
+            {
+                new PuzzleAchievementNotification(
+                    42,
+                    config.Achievements[0],
+                    DateTime.UtcNow),
+            });
+            Canvas.ForceUpdateCanvases();
+
+            Text title = popup.transform
+                .Find("Backdrop/Panel/Title")
+                ?.GetComponent<Text>();
+            Button acknowledge = popup.transform
+                .Find("Backdrop/Panel/Acknowledge")
+                ?.GetComponent<Button>();
+            if (!popup.IsOpen || popup.PendingCount != 1 || title == null ||
+                title.text != config.Achievements[0].Title || acknowledge == null)
+                throw new InvalidOperationException(
+                    "Achievement popup did not present its queued definition.");
+
+            acknowledge.onClick.Invoke();
+            if (acknowledgedId != 42 || popup.IsOpen || popup.PendingCount != 0)
+                throw new InvalidOperationException(
+                    "Achievement popup did not acknowledge and close its notification.");
         }
         finally
         {

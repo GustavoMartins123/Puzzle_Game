@@ -245,3 +245,148 @@ MonoBehaviour:
     requiredUniqueCompletions: 9
   - style: 12
     requiredUniqueCompletions: 12
+  achievements:
+  - id: first_puzzle
+    title: PRIMEIRO ENCAIXE
+    description: Complete seu primeiro quebra-cabeça.
+    metric: 0
+    target: 1
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: getting_started
+    title: PEGANDO O RITMO
+    description: Complete 5 quebra-cabeças.
+    metric: 0
+    target: 5
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: veteran
+    title: MONTADOR VETERANO
+    description: Complete 25 quebra-cabeças.
+    metric: 0
+    target: 25
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: centurion
+    title: CENTURIÃO
+    description: Complete 100 quebra-cabeças.
+    metric: 0
+    target: 100
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: collector
+    title: COLECIONADOR
+    description: Complete 10 imagens diferentes.
+    metric: 1
+    target: 10
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: curator
+    title: CURADOR
+    description: Complete 25 imagens diferentes.
+    metric: 1
+    target: 25
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: complete_gallery
+    title: GALERIA COMPLETA
+    description: Complete todas as 45 imagens.
+    metric: 1
+    target: 45
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 1
+  - id: perfect_finish
+    title: MONTAGEM PERFEITA
+    description: Termine uma partida sem erros e sem dicas.
+    metric: 2
+    target: 1
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: perfectionist
+    title: PERFECCIONISTA
+    description: Termine 10 partidas sem erros e sem dicas.
+    metric: 2
+    target: 10
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: self_sufficient
+    title: AUTOSSUFICIENTE
+    description: Termine 10 partidas sem utilizar dicas.
+    metric: 3
+    target: 10
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: normal_master
+    title: MESTRE DO NORMAL
+    description: Complete 10 partidas na dificuldade Normal.
+    metric: 4
+    target: 10
+    difficulty: 1
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: expert_master
+    title: MESTRE ESPECIALISTA
+    description: Complete 10 partidas na dificuldade Especialista.
+    metric: 4
+    target: 10
+    difficulty: 2
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: proceduralist
+    title: PROCEDURALISTA
+    description: Complete 5 partidas com o formato Procedural.
+    metric: 5
+    target: 5
+    difficulty: 0
+    cutStyle: 11
+    maximumSeconds: 0
+    hidden: 0
+  - id: chaos_master
+    title: MESTRE DO CAOS
+    description: Complete 5 partidas no modo Totalmente Aleatório.
+    metric: 5
+    target: 5
+    difficulty: 0
+    cutStyle: 12
+    maximumSeconds: 0
+    hidden: 0
+  - id: high_scorer
+    title: PONTUAÇÃO LENDÁRIA
+    description: Alcance 50.000 pontos em uma única partida.
+    metric: 6
+    target: 50000
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 0
+    hidden: 0
+  - id: speedrunner
+    title: CONTRA O RELÓGIO
+    description: Complete 3 partidas em até 2 minutos cada.
+    metric: 7
+    target: 3
+    difficulty: 0
+    cutStyle: 0
+    maximumSeconds: 120
+    hidden: 0
